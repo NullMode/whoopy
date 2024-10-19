@@ -54,7 +54,7 @@ class WhoopUserHandler(WhoopHandler):
         return models.UserProfile(**data)
 
     def body_measurements(self) -> models.UserMeasurements:
-        res = self._get("user/body_measurements")
+        res = self._get("user/measurement/body")
         data = self._verify(res)
 
         return models.UserMeasurements(**data)
