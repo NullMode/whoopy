@@ -1,0 +1,198 @@
+"""OAuth2 authentication helpers for Whoop API v2.
+
+Copyright (c) 2024 Felix Geilert
+"""
+
+import json
+import os
+import uuid
+import webbrowser
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from typing import Optional, List, Dict, Any
+from urllib.parse import urlencode
+
+from ..exceptions import AuthenticationError, RefreshTokenError
+
+
+@dataclass
+class TokenInfo:
+    """Container for OAuth2 token information."""
+    access_token: str
+    expires_in: int
+    refresh_token: Optional[str]
+    scopes: List[str]
+    token_type: str = "Bearer"
+    created_at: datetime = None
+    
+    def __post_init__(self):
+        if self.created_at is None:
+            self.created_at = datetime.utcnow()
+    
+    @property
+    def is_expired(self) -> bool:
+        """Check if the token has expired."""
+        expiry_time = self.created_at + timedelta(seconds=self.expires_in)
+        # Add 60 second buffer to account for clock skew
+        return datetime.utcnow() >= expiry_time - timedelta(seconds=60)
+    
+    @property
+    def expires_at(self) -> datetime:
+        """Get the expiration time of the token."""
+        return self.created_at + timedelta(seconds=self.expires_in)
+    
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert to dictionary for serialization."""
+        return {
+            "access_token": self.access_token,
+            "expires_in": self.expires_in,
+            "refresh_token": self.refresh_token,
+            "scopes": self.scopes,
+            "token_type": self.token_type,
+            "created_at": self.created_at.isoformat()
+        }
+    
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "TokenInfo":
+        """Create from dictionary."""
+        created_at = data.get("created_at")
+        if created_at:
+            created_at = datetime.fromisoformat(created_at)
+        
+        return cls(
+            access_token=data["access_token"],
+            expires_in=data["expires_in"],
+            refresh_token=data.get("refresh_token"),
+            scopes=data.get("scopes", []),
+            token_type=data.get("token_type", "Bearer"),
+            created_at=created_at
+        )
+
+
+class OAuth2Helper:
+    """Helper class for OAuth2 authentication flow."""
+    
+    AUTH_URL = "https://api.prod.whoop.com/oauth/oauth2/auth"
+    TOKEN_URL = "https://api.prod.whoop.com/oauth/oauth2/token"
+    
+    DEFAULT_SCOPES = [
+        "offline",
+        "read:recovery",
+        "read:cycles", 
+        "read:sleep",
+        "read:workout",
+        "read:profile",
+        "read:body_measurement",
+    ]
+    
+    def __init__(self, 
+                 client_id: str,
+                 client_secret: str,
+                 redirect_uri: str = "http://localhost:1234",
+                 scopes: Optional[List[str]] = None):
+        self.client_id = client_id
+        self.client_secret = client_secret
+        self.redirect_uri = redirect_uri
+        self.scopes = scopes or self.DEFAULT_SCOPES
+    
+    def get_authorization_url(self, state: Optional[str] = None) -> str:
+        """Generate the authorization URL for the OAuth2 flow."""
+        if state is None:
+            state = str(uuid.uuid4())
+        
+        params = {
+            "response_type": "code",
+            "client_id": self.client_id,
+            "redirect_uri": self.redirect_uri,
+            "scope": " ".join(self.scopes),
+            "state": state,
+        }
+        
+        return f"{self.AUTH_URL}?{urlencode(params)}"
+    
+    def open_authorization_url(self, state: Optional[str] = None) -> str:
+        """Open the authorization URL in the default browser."""
+        url = self.get_authorization_url(state)
+        webbrowser.open(url)
+        return url
+    
+    async def exchange_code_for_token(self, 
+                                     session,
+                                     code: str) -> TokenInfo:
+        """Exchange authorization code for access token."""
+        data = {
+            "grant_type": "authorization_code",
+            "code": code,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+            "redirect_uri": self.redirect_uri,
+        }
+        
+        async with session.post(self.TOKEN_URL, data=data) as response:
+            if response.status != 200:
+                error_data = await response.text()
+                raise AuthenticationError(
+                    f"Failed to exchange code for token: {response.status}",
+                    details={"status": response.status, "response": error_data}
+                )
+            
+            token_data = await response.json()
+            
+        return TokenInfo(
+            access_token=token_data["access_token"],
+            expires_in=token_data["expires_in"],
+            refresh_token=token_data.get("refresh_token"),
+            scopes=token_data.get("scope", "").split() if token_data.get("scope") else self.scopes,
+            token_type=token_data.get("token_type", "Bearer")
+        )
+    
+    async def refresh_access_token(self,
+                                  session,
+                                  refresh_token: str) -> TokenInfo:
+        """Refresh an expired access token."""
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": self.client_id,
+            "client_secret": self.client_secret,
+        }
+        
+        async with session.post(self.TOKEN_URL, data=data) as response:
+            if response.status != 200:
+                error_data = await response.text()
+                raise RefreshTokenError(
+                    f"Failed to refresh token: {response.status}",
+                    details={"status": response.status, "response": error_data}
+                )
+            
+            token_data = await response.json()
+        
+        return TokenInfo(
+            access_token=token_data["access_token"],
+            expires_in=token_data["expires_in"],
+            refresh_token=token_data.get("refresh_token", refresh_token),
+            scopes=token_data.get("scope", "").split() if token_data.get("scope") else self.scopes,
+            token_type=token_data.get("token_type", "Bearer")
+        )
+    
+    def save_token(self, token: TokenInfo, path: str = ".whoop_credentials.json"):
+        """Save token to file."""
+        # Create directory if it doesn't exist
+        dir_path = os.path.dirname(path)
+        if dir_path and not os.path.exists(dir_path):
+            os.makedirs(dir_path, exist_ok=True)
+        
+        with open(path, 'w') as f:
+            json.dump(token.to_dict(), f, indent=2)
+    
+    def load_token(self, path: str = ".whoop_credentials.json") -> Optional[TokenInfo]:
+        """Load token from file."""
+        if not os.path.exists(path):
+            return None
+        
+        try:
+            with open(path, 'r') as f:
+                data = json.load(f)
+            return TokenInfo.from_dict(data)
+        except (json.JSONDecodeError, KeyError, ValueError):
+            return None
