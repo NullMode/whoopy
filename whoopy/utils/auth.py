@@ -10,9 +10,9 @@ import webbrowser
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, ClassVar
+from urllib.parse import urlencode
 
 import aiohttp
-from urllib.parse import urlencode
 
 from whoopy.constants import HTTP_OK
 from whoopy.exceptions import AuthenticationError, RefreshTokenError

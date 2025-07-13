@@ -43,7 +43,7 @@ def load_config(config_path: str | None = None) -> dict:
     with open(config_path) as f:
         res = json.load(f)
         assert isinstance(res, dict)
-        
+
         # Handle both flat and nested config structures
         if "whoop" in res:
             # Nested structure (backward compatibility)
@@ -52,7 +52,7 @@ def load_config(config_path: str | None = None) -> dict:
         else:
             # Flat structure (preferred)
             config = res
-            
+
         return config
 
 

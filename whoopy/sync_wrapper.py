@@ -71,7 +71,7 @@ class SyncUserHandler:
 
 class SyncCollectionMixin:
     """Mixin for synchronous collection operations."""
-    
+
     _handler: Any  # Will be set by subclasses
 
     @async_to_sync
@@ -96,7 +96,9 @@ class SyncCollectionMixin:
         """Get all items across all pages."""
         return await self._handler.get_all(start=start, end=end, limit_per_page=limit_per_page, max_records=max_records)
 
-    def iterate(self, start: str | datetime | None = None, end: str | datetime | None = None, limit_per_page: int = 25) -> list[Any]:
+    def iterate(
+        self, start: str | datetime | None = None, end: str | datetime | None = None, limit_per_page: int = 25
+    ) -> list[Any]:
         """Iterate over all items across all pages."""
 
         async def _iterate() -> list[Any]:

@@ -5,10 +5,10 @@ Copyright (c) 2024 Felix Geilert
 
 import asyncio
 import random
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from functools import wraps
-from typing import Any, Awaitable, TypeVar, cast
+from typing import Any, TypeVar, cast
 
 from whoopy.exceptions import RateLimitError, ServerError
 
@@ -46,7 +46,9 @@ def calculate_backoff_delay(attempt: int, config: RetryConfig, retry_after: int 
     return min(delay, config.max_delay)
 
 
-def retry_with_backoff(config: RetryConfig | None = None) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
+def retry_with_backoff(
+    config: RetryConfig | None = None,
+) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """Decorator for adding retry logic to async functions."""
     if config is None:
         config = RetryConfig()
@@ -89,7 +91,12 @@ def retry_with_backoff(config: RetryConfig | None = None) -> Callable[[Callable[
 class RetryableSession:
     """A session wrapper that automatically retries failed requests."""
 
-    def __init__(self, session: Any, retry_config: RetryConfig | None = None, check_response_func: Callable[[Any], Awaitable[None]] | None = None) -> None:
+    def __init__(
+        self,
+        session: Any,
+        retry_config: RetryConfig | None = None,
+        check_response_func: Callable[[Any], Awaitable[None]] | None = None,
+    ) -> None:
         self.session = session
         self.retry_config = retry_config or RetryConfig()
         self.check_response_func = check_response_func

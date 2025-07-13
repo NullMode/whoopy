@@ -17,7 +17,7 @@ import requests
 from dateutil import parser
 from time_helper import create_intervals, localize_datetime
 
-from .constants import HTTP_OK, HTTP_UNAUTHORIZED, MAX_RETRY_ATTEMPTS
+from .constants import HTTP_OK, HTTP_UNAUTHORIZED
 
 # define default whoop date format
 DATE_FORMAT = "%Y-%m-%d"

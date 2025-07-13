@@ -35,7 +35,7 @@ class UserHandler(BaseHandler):
 class CycleHandler(CombinedHandler[models.Cycle]):
     """Handler for cycle endpoints."""
 
-    def __init__(self, client: "WhoopClientV2"):
+    def __init__(self, client: WhoopClientV2):
         super().__init__(
             client=client,
             resource_path="cycle",
@@ -69,7 +69,7 @@ class CycleHandler(CombinedHandler[models.Cycle]):
 class SleepHandler(CombinedHandler[models.Sleep]):
     """Handler for sleep endpoints."""
 
-    def __init__(self, client: "WhoopClientV2"):
+    def __init__(self, client: WhoopClientV2):
         super().__init__(
             client=client,
             resource_path="activity/sleep",
@@ -98,7 +98,7 @@ class SleepHandler(CombinedHandler[models.Sleep]):
 class RecoveryHandler(CollectionHandler[models.Recovery]):
     """Handler for recovery endpoints."""
 
-    def __init__(self, client: "WhoopClientV2"):
+    def __init__(self, client: WhoopClientV2):
         super().__init__(
             client=client,
             collection_path="activity/recovery",
@@ -131,7 +131,7 @@ class RecoveryHandler(CollectionHandler[models.Recovery]):
 class WorkoutHandler(CombinedHandler[models.WorkoutV2]):
     """Handler for workout endpoints."""
 
-    def __init__(self, client: "WhoopClientV2"):
+    def __init__(self, client: WhoopClientV2):
         super().__init__(
             client=client,
             resource_path="activity/workout",

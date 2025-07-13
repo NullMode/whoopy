@@ -9,9 +9,9 @@ import json
 import os
 import uuid
 import webbrowser
+from typing import Any
 
 import requests
-from typing import Any
 from typing_extensions import Self
 
 from .constants import HTTP_OK, MIN_PASSWORD_LENGTH

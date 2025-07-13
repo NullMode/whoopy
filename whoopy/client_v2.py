@@ -381,14 +381,10 @@ class WhoopClientV2:
 
         with open(config_path) as f:
             config_data = json.load(f)
-            
+
         # Handle both flat and nested config structures
-        if "whoop" in config_data:
-            # Nested structure (backward compatibility)
-            config = config_data["whoop"]
-        else:
-            # Flat structure (preferred)
-            config = config_data
+        assert isinstance(config_data, dict)
+        config = config_data.get("whoop", config_data)
 
         client_id = config.get("client_id")
         client_secret = config.get("client_secret")

@@ -6,8 +6,9 @@ Copyright (c) 2024 Felix Geilert
 from __future__ import annotations
 
 from abc import ABC
+from collections.abc import AsyncIterator
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, AsyncIterator, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, TypeVar
 
 if TYPE_CHECKING:
     from whoopy.client_v2 import WhoopClientV2
@@ -24,7 +25,7 @@ T = TypeVar("T", bound=models.BaseWhoopModel)
 class BaseHandler(ABC):  # noqa: B024
     """Base handler for API resources."""
 
-    def __init__(self, client: "WhoopClientV2"):
+    def __init__(self, client: WhoopClientV2):
         """
         Initialize handler.
 
@@ -62,7 +63,7 @@ class BaseHandler(ABC):  # noqa: B024
 class ResourceHandler(BaseHandler, Generic[T]):
     """Base handler for single resources."""
 
-    def __init__(self, client: "WhoopClientV2", resource_path: str, model_class: type[T]):
+    def __init__(self, client: WhoopClientV2, resource_path: str, model_class: type[T]):
         """
         Initialize resource handler.
 
@@ -103,7 +104,13 @@ class ResourceHandler(BaseHandler, Generic[T]):
 class CollectionHandler(BaseHandler, Generic[T]):
     """Base handler for resource collections with pagination."""
 
-    def __init__(self, client: "WhoopClientV2", collection_path: str, model_class: type[T], response_class: type[PaginatedResponse]):
+    def __init__(
+        self,
+        client: WhoopClientV2,
+        collection_path: str,
+        model_class: type[T],
+        response_class: type[PaginatedResponse],
+    ):
         """
         Initialize collection handler.
 
@@ -235,7 +242,7 @@ class CombinedHandler(ResourceHandler[T], CollectionHandler[T]):
 
     def __init__(
         self,
-        client: "WhoopClientV2",
+        client: WhoopClientV2,
         resource_path: str,
         collection_path: str,
         model_class: type[T],
