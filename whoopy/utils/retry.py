@@ -6,7 +6,7 @@ Copyright (c) 2024 Felix Geilert
 import asyncio
 import random
 from dataclasses import dataclass
-from typing import TypeVar, Callable, Optional, Union, Type, Tuple
+from typing import TypeVar, Callable
 from functools import wraps
 
 from ..exceptions import RateLimitError, ServerError
@@ -22,13 +22,13 @@ class RetryConfig:
     max_delay: float = 60.0
     exponential_base: float = 2.0
     jitter: bool = True
-    retry_on: Tuple[Type[Exception], ...] = (RateLimitError, ServerError)
+    retry_on: tuple[type[Exception], ...] = (RateLimitError, ServerError)
     
 
 def calculate_backoff_delay(
     attempt: int, 
     config: RetryConfig,
-    retry_after: Optional[int] = None
+    retry_after: int | None = None
 ) -> float:
     """Calculate the delay before the next retry attempt."""
     if retry_after is not None:
@@ -48,7 +48,7 @@ def calculate_backoff_delay(
     return min(delay, config.max_delay)
 
 
-def retry_with_backoff(config: Optional[RetryConfig] = None):
+def retry_with_backoff(config: RetryConfig | None = None):
     """Decorator for adding retry logic to async functions."""
     if config is None:
         config = RetryConfig()
@@ -89,15 +89,19 @@ def retry_with_backoff(config: Optional[RetryConfig] = None):
 class RetryableSession:
     """A session wrapper that automatically retries failed requests."""
     
-    def __init__(self, session, retry_config: Optional[RetryConfig] = None):
+    def __init__(self, session, retry_config: RetryConfig | None = None, check_response_func=None):
         self.session = session
         self.retry_config = retry_config or RetryConfig()
+        self.check_response_func = check_response_func
     
     async def request(self, method: str, url: str, **kwargs):
         """Make a request with automatic retry logic."""
         @retry_with_backoff(self.retry_config)
         async def _request():
-            return await self.session.request(method, url, **kwargs)
+            response = await self.session.request(method, url, **kwargs)
+            if self.check_response_func:
+                await self.check_response_func(response)
+            return response
         
         return await _request()
     

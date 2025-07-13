@@ -3,7 +3,7 @@
 Copyright (c) 2024 Felix Geilert
 """
 
-from typing import TypeVar, Generic, List, Optional, Callable, AsyncIterator, Dict, Any
+from typing import TypeVar, Generic, Callable, AsyncIterator, Any
 from dataclasses import dataclass
 
 T = TypeVar('T')
@@ -12,8 +12,8 @@ T = TypeVar('T')
 @dataclass
 class PaginatedResponse(Generic[T]):
     """Container for paginated API responses."""
-    records: List[T]
-    next_token: Optional[str] = None
+    records: list[T]
+    next_token: str | None = None
     
     @property
     def has_more(self) -> bool:
@@ -39,15 +39,15 @@ class PaginationHelper(Generic[T]):
     
     async def get_page(self,
                       limit: int = 10,
-                      next_token: Optional[str] = None,
+                      next_token: str | None = None,
                       **kwargs) -> PaginatedResponse[T]:
         """Fetch a single page of results."""
         return await self.fetch_page(limit=limit, next_token=next_token, **kwargs)
     
     async def get_all(self,
                      limit_per_page: int = 25,
-                     max_records: Optional[int] = None,
-                     **kwargs) -> List[T]:
+                     max_records: int | None = None,
+                     **kwargs) -> list[T]:
         """
         Fetch all records across all pages.
         
@@ -156,7 +156,7 @@ class PaginationHelper(Generic[T]):
             next_token = page.next_token
 
 
-def parse_pagination_params(params: Dict[str, Any]) -> Dict[str, Any]:
+def parse_pagination_params(params: dict[str, Any]) -> dict[str, Any]:
     """
     Parse and validate pagination parameters.
     

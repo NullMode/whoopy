@@ -5,12 +5,11 @@ This contains information for the unofficial version 7 of the Whoop API.
 Copyright (C) 2022 Felix Geilert
 """
 import json
-from typing import Dict, Union
 
 import requests
 import configparser
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 
 from dateutil import parser
 import pandas as pd
@@ -33,7 +32,7 @@ class AuthenticationError(Exception):
     pass
 
 
-def whoop_time_str(dt: Union[datetime, str]):
+def whoop_time_str(dt: datetime | str):
     """Converts a datetime object into a whoop timestring"""
     # convert to utc
     dt_utc = localize_datetime(dt, "Etc/UTC")
@@ -56,7 +55,7 @@ class WhoopClient:
         auth_token=None,
         whoop_id=None,
         refresh_token=None,
-        current_datetime=datetime.utcnow(),
+        current_datetime=datetime.now(timezone.utc),
     ):
         # create some general params
         self.auth_token = auth_token
@@ -265,7 +264,7 @@ class WhoopClient:
                     )
                 end_date = end_date.replace(tzinfo=None)
             else:
-                end_date = datetime.utcnow()
+                end_date = datetime.now(timezone.utc)
 
             # generate range
             date_range = create_intervals(
@@ -361,7 +360,7 @@ class WhoopClient:
         self.sport_dict = self.sport_dict
         return sport_dict
 
-    def _apply_zone(self, item: Dict[str, float], zone: int):
+    def _apply_zone(self, item: dict[str, float], zone: int):
         if item is None or zone not in item:
             return None
         return item[zone] / 60000.0

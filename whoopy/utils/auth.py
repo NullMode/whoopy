@@ -8,8 +8,8 @@ import os
 import uuid
 import webbrowser
 from dataclasses import dataclass
-from datetime import datetime, timedelta
-from typing import Optional, List, Dict, Any
+from datetime import datetime, timedelta, timezone
+from typing import Any
 from urllib.parse import urlencode
 
 from ..exceptions import AuthenticationError, RefreshTokenError
@@ -20,28 +20,28 @@ class TokenInfo:
     """Container for OAuth2 token information."""
     access_token: str
     expires_in: int
-    refresh_token: Optional[str]
-    scopes: List[str]
+    refresh_token: str | None
+    scopes: list[str]
     token_type: str = "Bearer"
     created_at: datetime = None
     
     def __post_init__(self):
         if self.created_at is None:
-            self.created_at = datetime.utcnow()
+            self.created_at = datetime.now(timezone.utc)
     
     @property
     def is_expired(self) -> bool:
         """Check if the token has expired."""
         expiry_time = self.created_at + timedelta(seconds=self.expires_in)
         # Add 60 second buffer to account for clock skew
-        return datetime.utcnow() >= expiry_time - timedelta(seconds=60)
+        return datetime.now(timezone.utc) >= expiry_time - timedelta(seconds=60)
     
     @property
     def expires_at(self) -> datetime:
         """Get the expiration time of the token."""
         return self.created_at + timedelta(seconds=self.expires_in)
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""
         return {
             "access_token": self.access_token,
@@ -53,7 +53,7 @@ class TokenInfo:
         }
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "TokenInfo":
+    def from_dict(cls, data: dict[str, Any]) -> "TokenInfo":
         """Create from dictionary."""
         created_at = data.get("created_at")
         if created_at:
@@ -89,13 +89,13 @@ class OAuth2Helper:
                  client_id: str,
                  client_secret: str,
                  redirect_uri: str = "http://localhost:1234",
-                 scopes: Optional[List[str]] = None):
+                 scopes: list[str] | None = None):
         self.client_id = client_id
         self.client_secret = client_secret
         self.redirect_uri = redirect_uri
         self.scopes = scopes or self.DEFAULT_SCOPES
     
-    def get_authorization_url(self, state: Optional[str] = None) -> str:
+    def get_authorization_url(self, state: str | None = None) -> str:
         """Generate the authorization URL for the OAuth2 flow."""
         if state is None:
             state = str(uuid.uuid4())
@@ -110,7 +110,7 @@ class OAuth2Helper:
         
         return f"{self.AUTH_URL}?{urlencode(params)}"
     
-    def open_authorization_url(self, state: Optional[str] = None) -> str:
+    def open_authorization_url(self, state: str | None = None) -> str:
         """Open the authorization URL in the default browser."""
         url = self.get_authorization_url(state)
         webbrowser.open(url)
@@ -185,7 +185,7 @@ class OAuth2Helper:
         with open(path, 'w') as f:
             json.dump(token.to_dict(), f, indent=2)
     
-    def load_token(self, path: str = ".whoop_credentials.json") -> Optional[TokenInfo]:
+    def load_token(self, path: str = ".whoop_credentials.json") -> TokenInfo | None:
         """Load token from file."""
         if not os.path.exists(path):
             return None

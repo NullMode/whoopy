@@ -9,7 +9,6 @@ import logging
 import math
 import os
 from pathlib import Path
-from typing import Tuple, Dict
 import webbrowser
 
 import streamlit as st

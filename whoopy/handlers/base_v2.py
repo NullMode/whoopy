@@ -3,8 +3,10 @@
 Copyright (c) 2024 Felix Geilert
 """
 
+from __future__ import annotations
+
 from abc import ABC, abstractmethod
-from typing import TypeVar, Generic, Type, Optional, List, Dict, Any, Union
+from typing import TypeVar, Generic, Any
 from datetime import datetime
 
 import pandas as pd
@@ -39,7 +41,7 @@ class BaseHandler(ABC):
         response = await self.client.request("POST", path, **kwargs)
         return await response.json()
     
-    def _parse_datetime(self, dt: Union[str, datetime, None]) -> Optional[str]:
+    def _parse_datetime(self, dt: str | datetime | None) -> str | None:
         """Parse datetime to ISO format string."""
         if dt is None:
             return None
@@ -58,7 +60,7 @@ class BaseHandler(ABC):
 class ResourceHandler(BaseHandler, Generic[T]):
     """Base handler for single resources."""
     
-    def __init__(self, client, resource_path: str, model_class: Type[T]):
+    def __init__(self, client, resource_path: str, model_class: type[T]):
         """
         Initialize resource handler.
         
@@ -67,11 +69,11 @@ class ResourceHandler(BaseHandler, Generic[T]):
             resource_path: Base path for the resource
             model_class: Pydantic model class for the resource
         """
-        super().__init__(client)
+        BaseHandler.__init__(self, client)
         self.resource_path = resource_path
         self.model_class = model_class
     
-    async def get_by_id(self, resource_id: Union[str, int]) -> T:
+    async def get_by_id(self, resource_id: str | int) -> T:
         """
         Get a single resource by ID.
         
@@ -103,8 +105,8 @@ class CollectionHandler(BaseHandler, Generic[T]):
     def __init__(self, 
                  client,
                  collection_path: str,
-                 model_class: Type[T],
-                 response_class: Type[PaginatedResponse]):
+                 model_class: type[T],
+                 response_class: type[PaginatedResponse]):
         """
         Initialize collection handler.
         
@@ -114,7 +116,7 @@ class CollectionHandler(BaseHandler, Generic[T]):
             model_class: Pydantic model class for items
             response_class: Pydantic model class for paginated response
         """
-        super().__init__(client)
+        BaseHandler.__init__(self, client)
         self.collection_path = collection_path
         self.model_class = model_class
         self.response_class = response_class
@@ -154,9 +156,9 @@ class CollectionHandler(BaseHandler, Generic[T]):
     
     async def get_page(self,
                       limit: int = 10,
-                      start: Optional[Union[str, datetime]] = None,
-                      end: Optional[Union[str, datetime]] = None,
-                      next_token: Optional[str] = None) -> PaginatedResponse[T]:
+                      start: str | datetime | None = None,
+                      end: str | datetime | None = None,
+                      next_token: str | None = None) -> PaginatedResponse[T]:
         """
         Get a single page of results.
         
@@ -177,10 +179,10 @@ class CollectionHandler(BaseHandler, Generic[T]):
         )
     
     async def get_all(self,
-                     start: Optional[Union[str, datetime]] = None,
-                     end: Optional[Union[str, datetime]] = None,
+                     start: str | datetime | None = None,
+                     end: str | datetime | None = None,
                      limit_per_page: int = 25,
-                     max_records: Optional[int] = None) -> List[T]:
+                     max_records: int | None = None) -> list[T]:
         """
         Get all items across all pages.
         
@@ -201,8 +203,8 @@ class CollectionHandler(BaseHandler, Generic[T]):
         )
     
     async def iterate(self,
-                     start: Optional[Union[str, datetime]] = None,
-                     end: Optional[Union[str, datetime]] = None,
+                     start: str | datetime | None = None,
+                     end: str | datetime | None = None,
                      limit_per_page: int = 25):
         """
         Iterate over all items across all pages.
@@ -223,10 +225,10 @@ class CollectionHandler(BaseHandler, Generic[T]):
             yield item
     
     async def get_dataframe(self,
-                           start: Optional[Union[str, datetime]] = None,
-                           end: Optional[Union[str, datetime]] = None,
+                           start: str | datetime | None = None,
+                           end: str | datetime | None = None,
                            limit_per_page: int = 25,
-                           max_records: Optional[int] = None) -> pd.DataFrame:
+                           max_records: int | None = None) -> pd.DataFrame:
         """
         Get all items as a pandas DataFrame.
         
@@ -256,8 +258,8 @@ class CombinedHandler(ResourceHandler[T], CollectionHandler[T]):
                  client,
                  resource_path: str,
                  collection_path: str,
-                 model_class: Type[T],
-                 response_class: Type[PaginatedResponse]):
+                 model_class: type[T],
+                 response_class: type[PaginatedResponse]):
         """
         Initialize combined handler.
         

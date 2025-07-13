@@ -8,7 +8,6 @@ Copyright 2022 (C) Felix Geilert
 import json
 import os
 import requests
-from typing import Tuple, List
 from typing_extensions import Self
 import uuid
 import webbrowser
@@ -35,7 +34,7 @@ class WhoopClient:
         self,
         access_token: str,
         expires_in: int,
-        scopes: List[str],
+        scopes: list[str],
         refresh_token: str = None,
         client_id: str = None,
         client_secret: str = None,
@@ -47,7 +46,7 @@ class WhoopClient:
         Args:
             access_token (str): The access token.
             expires_in (int): The time until the token expires (in seconds).
-            scopes (List[str]): The scopes that the token has.
+            scopes (list[str]): The scopes that the token has.
             refresh_token (str, optional): The refresh token. Defaults to None.
             client_id (str, optional): The client ID. Defaults to None.
             client_secret (str, optional): The client secret. Defaults to None.
@@ -141,8 +140,8 @@ class WhoopClient:
         client_secret: str,
         redirect_uri: str,
         state: str = None,
-        scopes: List[str] = None,
-    ) -> Tuple[str, str]:
+        scopes: list[str] = None,
+    ) -> tuple[str, str]:
         """Generates authorization url for the Whoop API."""
         # check state
         if not state:
@@ -193,7 +192,7 @@ class WhoopClient:
         client_id: str,
         client_secret: str,
         redirect_url: str = "https://jwt.ms/",
-        scopes: List[str] = None,
+        scopes: list[str] = None,
     ) -> Self:
         """Authorize the client with the given code."""
         # generate request using the code
@@ -223,7 +222,7 @@ class WhoopClient:
         client_secret: str,
         redirect_url: str = "https://jwt.ms/",
         state: str = None,
-        scopes: List[str] = None,
+        scopes: list[str] = None,
     ) -> Self:
         """Runs through the entire auth flow.
 
@@ -234,7 +233,7 @@ class WhoopClient:
             client_secret (str): The client secret.
             redirect_url (str, optional): The redirect URL. Defaults to "https://jwt.ms/".
             state (str, optional): The state passed through to the output of request. Defaults to None.
-            scopes (List[str], optional): The scopes to request. Defaults to None.
+            scopes (list[str], optional): The scopes to request. Defaults to None.
                 (In case of None, all scopes are requested.)
 
         Returns:
@@ -282,7 +281,7 @@ class WhoopClient:
 
     @classmethod
     def from_token_or_flow(
-        cls, secret_json: str, token_path: str, scopes: List[str] = None
+        cls, secret_json: str, token_path: str, scopes: list[str] = None
     ) -> Self:
         """Creates a new WhoopClient from a token or by using the authorization flow.
 

@@ -133,3 +133,4 @@ config.json
 **/.tokens/*
 
 CLAUDE.md
+.claude

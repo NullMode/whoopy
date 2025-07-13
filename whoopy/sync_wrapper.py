@@ -9,7 +9,7 @@ Copyright (c) 2024 Felix Geilert
 
 import asyncio
 import functools
-from typing import Optional, List, Dict, Any, Union, TypeVar, Callable
+from typing import TypeVar, Callable, Any
 from datetime import datetime
 from uuid import UUID
 
@@ -74,9 +74,9 @@ class SyncCollectionMixin:
     @async_to_sync
     async def get_page(self,
                       limit: int = 10,
-                      start: Optional[Union[str, datetime]] = None,
-                      end: Optional[Union[str, datetime]] = None,
-                      next_token: Optional[str] = None):
+                      start: str | datetime | None = None,
+                      end: str | datetime | None = None,
+                      next_token: str | None = None):
         """Get a single page of results."""
         return await self._handler.get_page(
             limit=limit,
@@ -87,10 +87,10 @@ class SyncCollectionMixin:
     
     @async_to_sync
     async def get_all(self,
-                     start: Optional[Union[str, datetime]] = None,
-                     end: Optional[Union[str, datetime]] = None,
+                     start: str | datetime | None = None,
+                     end: str | datetime | None = None,
                      limit_per_page: int = 25,
-                     max_records: Optional[int] = None):
+                     max_records: int | None = None):
         """Get all items across all pages."""
         return await self._handler.get_all(
             start=start,
@@ -100,8 +100,8 @@ class SyncCollectionMixin:
         )
     
     def iterate(self,
-               start: Optional[Union[str, datetime]] = None,
-               end: Optional[Union[str, datetime]] = None,
+               start: str | datetime | None = None,
+               end: str | datetime | None = None,
                limit_per_page: int = 25):
         """Iterate over all items across all pages."""
         async def _iterate():
@@ -119,10 +119,10 @@ class SyncCollectionMixin:
     
     @async_to_sync
     async def get_dataframe(self,
-                           start: Optional[Union[str, datetime]] = None,
-                           end: Optional[Union[str, datetime]] = None,
+                           start: str | datetime | None = None,
+                           end: str | datetime | None = None,
                            limit_per_page: int = 25,
-                           max_records: Optional[int] = None) -> pd.DataFrame:
+                           max_records: int | None = None) -> pd.DataFrame:
         """Get all items as a pandas DataFrame."""
         return await self._handler.get_dataframe(
             start=start,
@@ -156,7 +156,7 @@ class SyncSleepHandler(SyncCollectionMixin):
         self._handler = async_handler
     
     @async_to_sync
-    async def get_by_id(self, sleep_id: Union[str, UUID]) -> models.Sleep:
+    async def get_by_id(self, sleep_id: str | UUID) -> models.Sleep:
         """Get a sleep activity by ID."""
         return await self._handler.get_by_id(sleep_id)
 
@@ -180,17 +180,17 @@ class SyncWorkoutHandler(SyncCollectionMixin):
         self._handler = async_handler
     
     @async_to_sync
-    async def get_by_id(self, workout_id: Union[str, UUID]) -> models.WorkoutV2:
+    async def get_by_id(self, workout_id: str | UUID) -> models.WorkoutV2:
         """Get a workout by ID."""
         return await self._handler.get_by_id(workout_id)
     
     @async_to_sync
     async def get_by_sport(self,
                           sport_name: str,
-                          start: Optional[Union[str, datetime]] = None,
-                          end: Optional[Union[str, datetime]] = None,
+                          start: str | datetime | None = None,
+                          end: str | datetime | None = None,
                           limit_per_page: int = 25,
-                          max_records: Optional[int] = None) -> List[models.WorkoutV2]:
+                          max_records: int | None = None) -> list[models.WorkoutV2]:
         """Get all workouts for a specific sport."""
         return await self._handler.get_by_sport(
             sport_name=sport_name,
@@ -205,11 +205,11 @@ class WhoopClientV2Sync:
     """Synchronous wrapper for WhoopClientV2."""
     
     def __init__(self,
-                 token_info: Optional[TokenInfo] = None,
-                 client_id: Optional[str] = None,
-                 client_secret: Optional[str] = None,
+                 token_info: TokenInfo | None = None,
+                 client_id: str | None = None,
+                 client_secret: str | None = None,
                  redirect_uri: str = "http://localhost:1234",
-                 retry_config: Optional[RetryConfig] = None,
+                 retry_config: RetryConfig | None = None,
                  auto_refresh_token: bool = True):
         """
         Initialize the synchronous Whoop API v2 client.
@@ -232,11 +232,11 @@ class WhoopClientV2Sync:
         )
         
         # Initialize sync handlers
-        self._user: Optional[SyncUserHandler] = None
-        self._cycles: Optional[SyncCycleHandler] = None
-        self._sleep: Optional[SyncSleepHandler] = None
-        self._recovery: Optional[SyncRecoveryHandler] = None
-        self._workouts: Optional[SyncWorkoutHandler] = None
+        self._user: SyncUserHandler | None = None
+        self._cycles: SyncCycleHandler | None = None
+        self._sleep: SyncSleepHandler | None = None
+        self._recovery: SyncRecoveryHandler | None = None
+        self._workouts: SyncWorkoutHandler | None = None
         
         # Initialize the client
         self._initialize()
@@ -294,7 +294,7 @@ class WhoopClientV2Sync:
         return self._workouts
     
     @property
-    def token_info(self) -> Optional[TokenInfo]:
+    def token_info(self) -> TokenInfo | None:
         """Get current token information."""
         return self._async_client.token_info
     
@@ -314,7 +314,7 @@ class WhoopClientV2Sync:
                  client_id: str,
                  client_secret: str,
                  redirect_uri: str = "http://localhost:1234",
-                 scopes: Optional[List[str]] = None,
+                 scopes: list[str] | None = None,
                  open_browser: bool = True) -> "WhoopClientV2Sync":
         """
         Perform OAuth2 authorization flow.
@@ -352,10 +352,10 @@ class WhoopClientV2Sync:
     def from_token(cls,
                   access_token: str,
                   expires_in: int = 3600,
-                  refresh_token: Optional[str] = None,
-                  scopes: Optional[List[str]] = None,
-                  client_id: Optional[str] = None,
-                  client_secret: Optional[str] = None) -> "WhoopClientV2Sync":
+                  refresh_token: str | None = None,
+                  scopes: list[str] | None = None,
+                  client_id: str | None = None,
+                  client_secret: str | None = None) -> "WhoopClientV2Sync":
         """Create client from existing token."""
         client = WhoopClientV2.from_token(
             access_token=access_token,

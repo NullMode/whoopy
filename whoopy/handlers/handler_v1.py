@@ -3,7 +3,7 @@
 Copyright (c) 2022 Felix Geilert
 """
 
-from typing import Any, Dict, List, Tuple, Type
+from typing import Any
 
 import pandas as pd
 import requests
@@ -36,7 +36,7 @@ class WhoopHandler:
         path = f"{self.client._base_path}/{path}"
         return self.client.session.post(path, data=data, **kwargs)
 
-    def _verify(self, res: requests.Response) -> Dict[str, Any]:
+    def _verify(self, res: requests.Response) -> dict[str, Any]:
         """Verifies the response from the Whoop API."""
         if res.status_code != 200:
             raise Exception(f"Whoop API returned status code {res.status_code}.")
@@ -70,7 +70,7 @@ class WhoopDataHandler(WhoopHandler):
         self,
         client: Any,
         path: str,
-        model: Type[models.UserData],
+        model: type[models.UserData],
         path_single: str = None,
     ) -> None:
         super().__init__(client)
@@ -85,20 +85,20 @@ class WhoopDataHandler(WhoopHandler):
         end: str = None,
         next: str = None,
         limit: int = 25,
-    ) -> Tuple[Dict, str]:
+    ) -> tuple[dict, str]:
         """Gets the data from the Whoop API."""
         params = self._params(start, end, next, limit)
         res = self._get(path, params=params)
         data = self._verify(res)
         return data["records"], data.get("next_token")
 
-    def _to_df(self, data: List[models.UserData]) -> pd.DataFrame:
+    def _to_df(self, data: list[models.UserData]) -> pd.DataFrame:
         """Converts the given data to a pandas DataFrame."""
         return pd.json_normalize([d.dict() for d in data])
 
     def _params(
         self, start: str = None, end: str = None, next: str = None, limit: int = 10
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         # check limit value
         if limit > 25 or limit < 1:
             raise ValueError("Limit must be between 1 and 25.")
@@ -130,7 +130,7 @@ class WhoopDataHandler(WhoopHandler):
         limit: int = 25,
         get_all_pages: bool = True,
         correct_offset: bool = True,
-    ) -> Tuple[List[models.UserData], str]:
+    ) -> tuple[list[models.UserData], str]:
         """Gets a collection of data from the Whoop API."""
         recs, token = self._get_data(self._path, start, end, next, limit)
         items = [self._model.from_dict(c, correct_offset=correct_offset) for c in recs]
@@ -153,7 +153,7 @@ class WhoopDataHandler(WhoopHandler):
         limit: int = 25,
         get_all_pages: bool = True,
         correct_offset: bool = True,
-    ) -> Tuple[pd.DataFrame, str]:
+    ) -> tuple[pd.DataFrame, str]:
         """Gets a collection of data from the Whoop API."""
         recs, token = self.collection(
             start, end, next, limit, get_all_pages, correct_offset

@@ -4,12 +4,12 @@ Copyright 2022 (C) Felix Geilert
 """
 
 
-from whoopy import WhoopClient
+from whoopy import WhoopClientV1
 
 
 def test_client_url():
     """Test that the client URL is correct"""
-    url, state = WhoopClient.auth_url("1234", "5678", "http://localhost:5000")
+    url, state = WhoopClientV1.auth_url("1234", "5678", "http://localhost:5000")
     assert url == (
         "https://api.prod.whoop.com/oauth/oauth2/auth"
         "?scope=offline read:recovery read:cycles read:sleep read:workout read:profile read:body_measurement"

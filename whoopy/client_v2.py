@@ -11,7 +11,7 @@ import asyncio
 import json
 import os
 from contextlib import asynccontextmanager
-from typing import Optional, List, Dict, Any, Type, Union
+from typing import Any
 from datetime import datetime
 
 import aiohttp
@@ -40,11 +40,11 @@ class WhoopClientV2:
     """Async client for Whoop API v2."""
     
     def __init__(self,
-                 token_info: Optional[TokenInfo] = None,
-                 client_id: Optional[str] = None,
-                 client_secret: Optional[str] = None,
+                 token_info: TokenInfo | None = None,
+                 client_id: str | None = None,
+                 client_secret: str | None = None,
                  redirect_uri: str = "http://localhost:1234",
-                 retry_config: Optional[RetryConfig] = None,
+                 retry_config: RetryConfig | None = None,
                  auto_refresh_token: bool = True):
         """
         Initialize the Whoop API v2 client.
@@ -65,8 +65,8 @@ class WhoopClientV2:
         self.auto_refresh_token = auto_refresh_token
         
         # Session will be created in __aenter__
-        self._session: Optional[aiohttp.ClientSession] = None
-        self._retry_session: Optional[RetryableSession] = None
+        self._session: aiohttp.ClientSession | None = None
+        self._retry_session: RetryableSession | None = None
         
         # OAuth helper
         if client_id and client_secret:
@@ -79,11 +79,11 @@ class WhoopClientV2:
             self._oauth_helper = None
         
         # API handlers (will be initialized after session is created)
-        self._cycles: Optional[handlers.CycleHandler] = None
-        self._sleep: Optional[handlers.SleepHandler] = None
-        self._recovery: Optional[handlers.RecoveryHandler] = None
-        self._workouts: Optional[handlers.WorkoutHandler] = None
-        self._user: Optional[handlers.UserHandler] = None
+        self._cycles: handlers.CycleHandler | None = None
+        self._sleep: handlers.SleepHandler | None = None
+        self._recovery: handlers.RecoveryHandler | None = None
+        self._workouts: handlers.WorkoutHandler | None = None
+        self._user: handlers.UserHandler | None = None
     
     @property
     def base_url(self) -> str:
@@ -152,7 +152,7 @@ class WhoopClientV2:
             headers["Authorization"] = f"{self.token_info.token_type} {self.token_info.access_token}"
         
         self._session = aiohttp.ClientSession(headers=headers)
-        self._retry_session = RetryableSession(self._session, self.retry_config)
+        self._retry_session = RetryableSession(self._session, self.retry_config, self.check_response)
         
         # Initialize handlers
         self._cycles = handlers.CycleHandler(self)
@@ -246,8 +246,8 @@ class WhoopClientV2:
     async def request(self,
                      method: str,
                      path: str,
-                     params: Optional[Dict[str, Any]] = None,
-                     json_data: Optional[Dict[str, Any]] = None,
+                     params: dict[str, Any] | None = None,
+                     json_data: dict[str, Any] | None = None,
                      **kwargs) -> aiohttp.ClientResponse:
         """
         Make an authenticated request to the API.
@@ -275,7 +275,6 @@ class WhoopClientV2:
                 json=json_data,
                 **kwargs
             )
-            await self.check_response(response)
             return response
             
         except TokenExpiredError:
@@ -288,7 +287,6 @@ class WhoopClientV2:
                 json=json_data,
                 **kwargs
             )
-            await self.check_response(response)
             return response
     
     # Authentication methods
@@ -297,7 +295,7 @@ class WhoopClientV2:
                        client_id: str,
                        client_secret: str,
                        redirect_uri: str = "http://localhost:1234",
-                       scopes: Optional[List[str]] = None,
+                       scopes: list[str] | None = None,
                        open_browser: bool = True) -> "WhoopClientV2":
         """
         Perform OAuth2 authorization flow.
@@ -355,10 +353,10 @@ class WhoopClientV2:
     def from_token(cls,
                   access_token: str,
                   expires_in: int = 3600,
-                  refresh_token: Optional[str] = None,
-                  scopes: Optional[List[str]] = None,
-                  client_id: Optional[str] = None,
-                  client_secret: Optional[str] = None) -> "WhoopClientV2":
+                  refresh_token: str | None = None,
+                  scopes: list[str] | None = None,
+                  client_id: str | None = None,
+                  client_secret: str | None = None) -> "WhoopClientV2":
         """
         Create client from existing token.
         

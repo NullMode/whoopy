@@ -3,7 +3,8 @@
 Copyright (c) 2024 Felix Geilert
 """
 
-from typing import Optional, Union
+from __future__ import annotations
+
 from datetime import datetime
 from uuid import UUID
 
@@ -75,7 +76,7 @@ class SleepHandler(CombinedHandler[models.Sleep]):
             response_class=models.PaginatedSleepResponse
         )
     
-    async def get_by_id(self, sleep_id: Union[str, UUID]) -> models.Sleep:
+    async def get_by_id(self, sleep_id: str | UUID) -> models.Sleep:
         """
         Get a sleep activity by ID.
         
@@ -140,7 +141,7 @@ class WorkoutHandler(CombinedHandler[models.WorkoutV2]):
             response_class=models.WorkoutCollection
         )
     
-    async def get_by_id(self, workout_id: Union[str, UUID]) -> models.WorkoutV2:
+    async def get_by_id(self, workout_id: str | UUID) -> models.WorkoutV2:
         """
         Get a workout by ID.
         
@@ -158,10 +159,10 @@ class WorkoutHandler(CombinedHandler[models.WorkoutV2]):
     
     async def get_by_sport(self,
                           sport_name: str,
-                          start: Optional[Union[str, datetime]] = None,
-                          end: Optional[Union[str, datetime]] = None,
+                          start: str | datetime | None = None,
+                          end: str | datetime | None = None,
                           limit_per_page: int = 25,
-                          max_records: Optional[int] = None) -> list[models.WorkoutV2]:
+                          max_records: int | None = None) -> list[models.WorkoutV2]:
         """
         Get all workouts for a specific sport.
         

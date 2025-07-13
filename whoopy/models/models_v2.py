@@ -5,7 +5,7 @@ Copyright (c) 2024 Felix Geilert
 
 from datetime import datetime
 from enum import Enum
-from typing import Optional, List, Dict, Any
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, Field, ConfigDict, computed_field
@@ -67,14 +67,14 @@ class Cycle(BaseWhoopModel):
     created_at: datetime
     updated_at: datetime
     start: datetime
-    end: Optional[datetime] = None
+    end: datetime | None = None
     timezone_offset: str
     score_state: ScoreState
-    score: Optional[CycleScore] = None
+    score: CycleScore | None = None
     
     @computed_field
     @property
-    def duration_hours(self) -> Optional[float]:
+    def duration_hours(self) -> float | None:
         """Calculate cycle duration in hours."""
         if self.end:
             return (self.end - self.start).total_seconds() / 3600
@@ -141,16 +141,16 @@ class SleepScore(BaseWhoopModel):
     """Sleep scoring metrics."""
     stage_summary: SleepStageSummary
     sleep_needed: SleepNeeded
-    respiratory_rate: Optional[float] = None
-    sleep_performance_percentage: Optional[float] = None
-    sleep_consistency_percentage: Optional[float] = None
-    sleep_efficiency_percentage: Optional[float] = None
+    respiratory_rate: float | None = None
+    sleep_performance_percentage: float | None = None
+    sleep_consistency_percentage: float | None = None
+    sleep_efficiency_percentage: float | None = None
 
 
 class Sleep(BaseWhoopModel):
     """Sleep activity data."""
     id: UUID
-    v1_id: Optional[int] = Field(None, description="Legacy v1 ID")
+    v1_id: int | None = Field(None, description="Legacy v1 ID")
     user_id: int
     created_at: datetime
     updated_at: datetime
@@ -159,7 +159,7 @@ class Sleep(BaseWhoopModel):
     timezone_offset: str
     nap: bool
     score_state: ScoreState
-    score: Optional[SleepScore] = None
+    score: SleepScore | None = None
     
     @computed_field
     @property
@@ -175,8 +175,8 @@ class RecoveryScore(BaseWhoopModel):
     recovery_score: float
     resting_heart_rate: float
     hrv_rmssd_milli: float
-    spo2_percentage: Optional[float] = None
-    skin_temp_celsius: Optional[float] = None
+    spo2_percentage: float | None = None
+    skin_temp_celsius: float | None = None
 
 
 class Recovery(BaseWhoopModel):
@@ -187,7 +187,7 @@ class Recovery(BaseWhoopModel):
     created_at: datetime
     updated_at: datetime
     score_state: ScoreState
-    score: Optional[RecoveryScore] = None
+    score: RecoveryScore | None = None
 
 
 # Workout Models
@@ -213,7 +213,7 @@ class ZoneDurations(BaseWhoopModel):
             self.zone_five_milli
         )
     
-    def to_dict_percentage(self) -> Dict[str, float]:
+    def to_dict_percentage(self) -> dict[str, float]:
         """Convert zone durations to percentages."""
         total = self.total_duration_milli
         if total == 0:
@@ -236,9 +236,9 @@ class WorkoutScore(BaseWhoopModel):
     max_heart_rate: int
     kilojoule: float
     percent_recorded: float
-    distance_meter: Optional[float] = None
-    altitude_gain_meter: Optional[float] = None
-    altitude_change_meter: Optional[float] = None
+    distance_meter: float | None = None
+    altitude_gain_meter: float | None = None
+    altitude_change_meter: float | None = None
     zone_durations: ZoneDurations
     
     @computed_field
@@ -251,8 +251,8 @@ class WorkoutScore(BaseWhoopModel):
 class WorkoutV2(BaseWhoopModel):
     """Workout activity data."""
     id: UUID
-    v1_id: Optional[int] = Field(None, description="Legacy v1 ID")
-    sport_id: Optional[int] = Field(None, description="Legacy sport ID")
+    v1_id: int | None = Field(None, description="Legacy v1 ID")
+    sport_id: int | None = Field(None, description="Legacy sport ID")
     user_id: int
     created_at: datetime
     updated_at: datetime
@@ -261,7 +261,7 @@ class WorkoutV2(BaseWhoopModel):
     timezone_offset: str
     sport_name: str
     score_state: ScoreState
-    score: Optional[WorkoutScore] = None
+    score: WorkoutScore | None = None
     
     @computed_field
     @property
@@ -273,7 +273,7 @@ class WorkoutV2(BaseWhoopModel):
 # Collection Response Models
 class PaginatedResponse(BaseWhoopModel):
     """Base class for paginated responses."""
-    next_token: Optional[str] = None
+    next_token: str | None = None
     
     @computed_field
     @property
@@ -284,22 +284,22 @@ class PaginatedResponse(BaseWhoopModel):
 
 class PaginatedCycleResponse(PaginatedResponse):
     """Paginated response for cycles."""
-    records: List[Cycle]
+    records: list[Cycle]
 
 
 class PaginatedSleepResponse(PaginatedResponse):
     """Paginated response for sleep activities."""
-    records: List[Sleep]
+    records: list[Sleep]
 
 
 class RecoveryCollection(PaginatedResponse):
     """Paginated response for recoveries."""
-    records: List[Recovery]
+    records: list[Recovery]
 
 
 class WorkoutCollection(PaginatedResponse):
     """Paginated response for workouts."""
-    records: List[WorkoutV2]
+    records: list[WorkoutV2]
 
 
 # Sport ID mapping (for backward compatibility)
@@ -420,7 +420,7 @@ SPORT_IDS = {
 
 
 # Helper functions for DataFrame conversion
-def models_to_dataframe(models: List[BaseWhoopModel]) -> pd.DataFrame:
+def models_to_dataframe(models: list[BaseWhoopModel]) -> pd.DataFrame:
     """Convert a list of Pydantic models to a pandas DataFrame."""
     if not models:
         return pd.DataFrame()

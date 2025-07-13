@@ -9,8 +9,13 @@ try:
     from .models.models_v1 import SPORT_IDS as SPORT_IDS_V1
     from .client_v1 import WhoopClient as WhoopClientV1
     from .client_v1 import API_VERSION as API_VERSION_V1
+    v1_available = True
 except Exception as ex:
     logging.error(f"Error importing whoopy v1: {ex}")
+    v1_available = False
+    WhoopClientV1 = None
+    API_VERSION_V1 = "1"
+    SPORT_IDS_V1 = {}
 
 # Import v2 as the new default
 try:
@@ -21,13 +26,19 @@ try:
     # Make v2 sync wrapper the default
     WhoopClient = WhoopClientV2Sync
     API_VERSION = "2"
+    v2_available = True
     
 except Exception as ex:
     logging.error(f"Error importing whoopy v2: {ex}")
-    # Fall back to v1 if v2 fails
-    WhoopClient = WhoopClientV1
-    API_VERSION = API_VERSION_V1
-    SPORT_IDS = SPORT_IDS_V1
+    v2_available = False
+    # Fall back to v1 if v2 fails and v1 is available
+    if v1_available:
+        WhoopClient = WhoopClientV1
+        API_VERSION = API_VERSION_V1
+        SPORT_IDS = SPORT_IDS_V1
+    else:
+        # Neither v1 nor v2 available
+        raise ImportError("Unable to import any version of WhoopClient") from ex
 
 # Export all available clients
 __all__ = [
