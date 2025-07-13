@@ -43,7 +43,7 @@ class UserData(BaseModel):
         return data
 
     @classmethod
-    def from_dict(cls, data: dict, correct_offset: bool = False):
+    def from_dict(cls, data: dict, correct_offset: bool = False) -> "UserData":
         # generate timedelta from timezone offset
         td = timedelta(days=0)
         if correct_offset and "timezone_offset" in data:
@@ -81,7 +81,7 @@ class UserCycleScore(BaseModel):
     max_heart_rate: int
 
     @property
-    def calories(self):
+    def calories(self) -> float:
         return self.kilojoule / 4.184
 
 
@@ -94,7 +94,7 @@ class UserCycle(UserData):
     score: UserCycleScore | None = None
 
     @classmethod
-    def _dict_parse(cls, data: dict) -> dict[str, Any | UserCycleScore]:
+    def _dict_parse(cls, data: dict) -> dict[str, Any]:
         if "score" in data and data["score"] is not None:
             data["score"] = UserCycleScore(**data["score"])
 
@@ -144,7 +144,7 @@ class UserSleep(UserData):
     score: UserSleepScore | None = None
 
     @classmethod
-    def _dict_parse(cls, data: dict):
+    def _dict_parse(cls, data: dict) -> dict[str, Any]:
         if "score" in data and data["score"] is not None:
             score_dict = data["score"]
             if "stage_summary" in score_dict and score_dict["stage_summary"] is not None:
@@ -179,7 +179,7 @@ class UserRecovery(UserData):
     score: UserRecoveryScore
 
     @classmethod
-    def _dict_parse(cls, data: dict) -> dict[str, Any | UserRecoveryScore]:
+    def _dict_parse(cls, data: dict) -> dict[str, Any]:
         if "score" in data and data["score"] is not None:
             data["score"] = UserRecoveryScore(**data["score"])
 
@@ -221,7 +221,7 @@ class UserWorkout(UserData):
     score: UserWorkoutScore | None = None
 
     @classmethod
-    def _dict_parse(cls, data: dict):
+    def _dict_parse(cls, data: dict) -> dict[str, Any]:
         if "score" in data and data["score"] is not None:
             score_dict = data["score"]
             if "zone_duration" in score_dict and score_dict["zone_duration"] is not None:

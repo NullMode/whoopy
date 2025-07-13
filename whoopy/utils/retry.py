@@ -8,7 +8,7 @@ import random
 from collections.abc import Callable
 from dataclasses import dataclass
 from functools import wraps
-from typing import TypeVar
+from typing import Any, Awaitable, TypeVar, cast
 
 from whoopy.exceptions import RateLimitError, ServerError
 
@@ -46,14 +46,14 @@ def calculate_backoff_delay(attempt: int, config: RetryConfig, retry_after: int 
     return min(delay, config.max_delay)
 
 
-def retry_with_backoff(config: RetryConfig | None = None):
+def retry_with_backoff(config: RetryConfig | None = None) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
     """Decorator for adding retry logic to async functions."""
     if config is None:
         config = RetryConfig()
 
-    def decorator(func: Callable[..., T]) -> Callable[..., T]:
+    def decorator(func: Callable[..., Awaitable[T]]) -> Callable[..., Awaitable[T]]:
         @wraps(func)
-        async def wrapper(*args, **kwargs) -> T:
+        async def wrapper(*args: Any, **kwargs: Any) -> T:
             last_exception = None
 
             for attempt in range(config.max_attempts):
@@ -79,9 +79,9 @@ def retry_with_backoff(config: RetryConfig | None = None):
             # This shouldn't be reached, but just in case
             if last_exception:
                 raise last_exception
-            return None
+            raise RuntimeError("Unexpected retry logic error")
 
-        return wrapper
+        return cast(Callable[..., Awaitable[T]], wrapper)
 
     return decorator
 
@@ -89,16 +89,16 @@ def retry_with_backoff(config: RetryConfig | None = None):
 class RetryableSession:
     """A session wrapper that automatically retries failed requests."""
 
-    def __init__(self, session, retry_config: RetryConfig | None = None, check_response_func=None):
+    def __init__(self, session: Any, retry_config: RetryConfig | None = None, check_response_func: Callable[[Any], Awaitable[None]] | None = None) -> None:
         self.session = session
         self.retry_config = retry_config or RetryConfig()
         self.check_response_func = check_response_func
 
-    async def request(self, method: str, url: str, **kwargs):
+    async def request(self, method: str, url: str, **kwargs: Any) -> Any:
         """Make a request with automatic retry logic."""
 
         @retry_with_backoff(self.retry_config)
-        async def _request():
+        async def _request() -> Any:
             response = await self.session.request(method, url, **kwargs)
             if self.check_response_func:
                 await self.check_response_func(response)
@@ -106,18 +106,18 @@ class RetryableSession:
 
         return await _request()
 
-    async def get(self, url: str, **kwargs):
+    async def get(self, url: str, **kwargs: Any) -> Any:
         """GET request with retry."""
         return await self.request("GET", url, **kwargs)
 
-    async def post(self, url: str, **kwargs):
+    async def post(self, url: str, **kwargs: Any) -> Any:
         """POST request with retry."""
         return await self.request("POST", url, **kwargs)
 
-    async def put(self, url: str, **kwargs):
+    async def put(self, url: str, **kwargs: Any) -> Any:
         """PUT request with retry."""
         return await self.request("PUT", url, **kwargs)
 
-    async def delete(self, url: str, **kwargs):
+    async def delete(self, url: str, **kwargs: Any) -> Any:
         """DELETE request with retry."""
         return await self.request("DELETE", url, **kwargs)

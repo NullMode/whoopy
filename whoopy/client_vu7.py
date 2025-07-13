@@ -9,6 +9,7 @@ import configparser
 import json
 import logging
 from datetime import datetime, timezone
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -33,7 +34,7 @@ class AuthenticationError(Exception):
     pass
 
 
-def whoop_time_str(dt: datetime | str):
+def whoop_time_str(dt: datetime | str) -> str:
     """Converts a datetime object into a whoop timestring"""
     # convert to utc
     dt_utc = localize_datetime(dt, "Etc/UTC")
@@ -53,11 +54,11 @@ class WhoopClient:
 
     def __init__(
         self,
-        auth_token=None,
-        whoop_id=None,
-        refresh_token=None,
-        current_datetime=datetime.now(timezone.utc),
-    ):
+        auth_token: str | None = None,
+        whoop_id: str | None = None,
+        refresh_token: str | None = None,
+        current_datetime: datetime = datetime.now(timezone.utc),
+    ) -> None:
         # create some general params
         self.auth_token = auth_token
         self.refresh_token = refresh_token
@@ -72,7 +73,7 @@ class WhoopClient:
         if self.auth_token and not self.start_datetime:
             self.pull_userinfo()
 
-    def _create_url(self, postfix="", auth=False, user=True):
+    def _create_url(self, postfix: str = "", auth: bool = False, user: bool = True) -> str:
         """Generates the URL of the whoop endpoints"""
         base_url = API_URL
 
@@ -89,7 +90,7 @@ class WhoopClient:
         # generate url
         return f"{base_url}/{postfix}"
 
-    def pull_api(self, url, params=None, df=False):
+    def pull_api(self, url: str, params: dict[str, Any] | None = None, df: bool = False) -> Any:
         """Generalized function to retrieve data from the API.
 
         Args:
@@ -122,8 +123,8 @@ class WhoopClient:
 
                 return d
             return pull.json()
-        if pull.status_code == HTTP_UNAUTHORIZED and self.auth_refresh < MAX_RETRY_ATTEMPTS:
-            raise AuthenticationError("Unable to authenticate wiht backend")
+        if pull.status_code == HTTP_UNAUTHORIZED:
+            raise AuthenticationError("Unable to authenticate with backend")
         raise OSError(
             f"Unable to retrieve API response for url ({url}): {pull.status_code}",
             pull,
@@ -335,10 +336,10 @@ class WhoopClient:
         self.sport_dict = self.sport_dict
         return sport_dict
 
-    def _apply_zone(self, item: dict[str, float], zone: int):
-        if item is None or zone not in item:
+    def _apply_zone(self, item: dict[str, float], zone: int) -> float | None:
+        if item is None or str(zone) not in item:
             return None
-        return item[zone] / 60000.0
+        return item[str(zone)] / 60000.0
 
     def get_activities(self, all_data=None, update_sport_dict=False, start=None, end=None):
         """

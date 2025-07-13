@@ -1,6 +1,7 @@
 __version__ = "0.3.0"
 
 import logging
+from typing import Any
 
 # Import v1 for backward compatibility
 try:
@@ -14,11 +15,17 @@ try:
 except Exception as ex:
     logging.error(f"Error importing whoopy v1: {ex}")
     v1_available = False
-    WhoopClientV1 = None
+    WhoopClientV1 = None  # type: ignore[misc,assignment]
     API_VERSION_V1 = "1"
     SPORT_IDS_V1 = {}
 
 # Import v2 as the new default
+WhoopClient: Any
+WhoopClientV2: Any | None = None
+WhoopClientV2Sync: Any | None = None
+API_VERSION: str
+SPORT_IDS: dict[int, str]
+
 try:
     from .client_v2 import WhoopClientV2
     from .models.models_v2 import SPORT_IDS

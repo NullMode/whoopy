@@ -79,7 +79,7 @@ class WhoopClientV2:
                 client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri
             )
         else:
-            self._oauth_helper = None
+            self._oauth_helper = None  # type: ignore[assignment]
 
         # API handlers (will be initialized after session is created)
         self._cycles: handlers.CycleHandler | None = None
@@ -166,7 +166,7 @@ class WhoopClientV2:
 
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
         """Exit async context manager."""
         if self._session:
             await self._session.close()
@@ -245,7 +245,7 @@ class WhoopClientV2:
         path: str,
         params: dict[str, Any] | None = None,
         json_data: dict[str, Any] | None = None,
-        **kwargs,
+        **kwargs: Any,
     ) -> aiohttp.ClientResponse:
         """
         Make an authenticated request to the API.
@@ -266,12 +266,12 @@ class WhoopClientV2:
 
         # Try the request
         try:
-            return await self.retry_session.request(method, url, params=params, json=json_data, **kwargs)
+            return await self.retry_session.request(method, url, params=params, json=json_data, **kwargs)  # type: ignore[no-any-return]
 
         except TokenExpiredError:
             # Try to refresh token and retry once
             await self.refresh_token()
-            return await self.retry_session.request(method, url, params=params, json=json_data, **kwargs)
+            return await self.retry_session.request(method, url, params=params, json=json_data, **kwargs)  # type: ignore[no-any-return]
 
     # Authentication methods
     @classmethod
@@ -380,7 +380,15 @@ class WhoopClientV2:
             raise ConfigurationError(f"Config file not found: {config_path}")
 
         with open(config_path) as f:
-            config = json.load(f)
+            config_data = json.load(f)
+            
+        # Handle both flat and nested config structures
+        if "whoop" in config_data:
+            # Nested structure (backward compatibility)
+            config = config_data["whoop"]
+        else:
+            # Flat structure (preferred)
+            config = config_data
 
         client_id = config.get("client_id")
         client_secret = config.get("client_secret")

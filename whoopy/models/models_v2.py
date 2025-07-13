@@ -57,8 +57,7 @@ class CycleScore(BaseWhoopModel):
     average_heart_rate: int
     max_heart_rate: int
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def calories(self) -> float:
         """Convert kilojoules to calories."""
         return self.kilojoule / 4.184
@@ -77,16 +76,14 @@ class Cycle(BaseWhoopModel):
     score_state: ScoreState
     score: CycleScore | None = None
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def duration_hours(self) -> float | None:
         """Calculate cycle duration in hours."""
         if self.end:
             return (self.end - self.start).total_seconds() / 3600
         return None
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def is_complete(self) -> bool:
         """Check if the cycle is complete."""
         return self.end is not None
@@ -105,21 +102,22 @@ class SleepStageSummary(BaseWhoopModel):
     sleep_cycle_count: int
     disturbance_count: int
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def total_sleep_time_milli(self) -> int:
         """Calculate total sleep time."""
         return (
             self.total_light_sleep_time_milli + self.total_slow_wave_sleep_time_milli + self.total_rem_sleep_time_milli
         )
 
-    @computed_field
+    @computed_field  # type: ignore[misc]
     @property
     def sleep_efficiency_percentage(self) -> float:
         """Calculate sleep efficiency as percentage."""
         if self.total_in_bed_time_milli == 0:
             return 0.0
-        return (self.total_sleep_time_milli / self.total_in_bed_time_milli) * 100
+        # Access the method result directly
+        total_sleep = self.total_sleep_time_milli
+        return (total_sleep / self.total_in_bed_time_milli) * 100
 
 
 class SleepNeeded(BaseWhoopModel):
@@ -130,8 +128,7 @@ class SleepNeeded(BaseWhoopModel):
     need_from_recent_strain_milli: int
     need_from_recent_nap_milli: int
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def total_need_milli(self) -> int:
         """Calculate total sleep need."""
         return (
@@ -168,8 +165,7 @@ class Sleep(BaseWhoopModel):
     score_state: ScoreState
     score: SleepScore | None = None
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def duration_hours(self) -> float:
         """Calculate sleep duration in hours."""
         return (self.end - self.start).total_seconds() / 3600
@@ -210,8 +206,7 @@ class ZoneDurations(BaseWhoopModel):
     zone_four_milli: int
     zone_five_milli: int
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def total_duration_milli(self) -> int:
         """Calculate total workout duration."""
         return (
@@ -225,6 +220,7 @@ class ZoneDurations(BaseWhoopModel):
 
     def to_dict_percentage(self) -> dict[str, float]:
         """Convert zone durations to percentages."""
+        # Access the computed field value directly
         total = self.total_duration_milli
         if total == 0:
             return {f"zone_{i}_percentage": 0.0 for i in range(6)}
@@ -252,8 +248,7 @@ class WorkoutScore(BaseWhoopModel):
     altitude_change_meter: float | None = None
     zone_durations: ZoneDurations
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def calories(self) -> float:
         """Convert kilojoules to calories."""
         return self.kilojoule / 4.184
@@ -275,8 +270,7 @@ class WorkoutV2(BaseWhoopModel):
     score_state: ScoreState
     score: WorkoutScore | None = None
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def duration_hours(self) -> float:
         """Calculate workout duration in hours."""
         return (self.end - self.start).total_seconds() / 3600
@@ -288,8 +282,7 @@ class PaginatedResponse(BaseWhoopModel):
 
     next_token: str | None = None
 
-    @computed_field
-    @property
+    @computed_field  # type: ignore[misc]
     def has_more(self) -> bool:
         """Check if there are more pages."""
         return self.next_token is not None

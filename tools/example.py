@@ -43,7 +43,17 @@ def load_config(config_path: str | None = None) -> dict:
     with open(config_path) as f:
         res = json.load(f)
         assert isinstance(res, dict)
-        return res
+        
+        # Handle both flat and nested config structures
+        if "whoop" in res:
+            # Nested structure (backward compatibility)
+            config = res["whoop"]
+            print("Note: Using nested config structure. Consider updating to flat structure.")
+        else:
+            # Flat structure (preferred)
+            config = res
+            
+        return config
 
 
 def example_sync() -> None:

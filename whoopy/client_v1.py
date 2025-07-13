@@ -11,6 +11,7 @@ import uuid
 import webbrowser
 
 import requests
+from typing import Any
 from typing_extensions import Self
 
 from .constants import HTTP_OK, MIN_PASSWORD_LENGTH
@@ -71,7 +72,7 @@ class WhoopClient:
         self.recovery = handlers.WhoopRecoveryHandler(self)
 
     @property
-    def _token(self):
+    def _token(self) -> dict[str, Any]:
         return {
             "access_token": self.token,
             "expires_in": self.expires_in,
@@ -79,7 +80,7 @@ class WhoopClient:
             "scopes": self.scopes,
         }
 
-    def _update_session(self):
+    def _update_session(self) -> None:
         """Updates the session with the new token."""
         self._base_path = f"{API_BASE}developer/v1"
         self.session = requests.Session()
@@ -90,7 +91,7 @@ class WhoopClient:
             }
         )
 
-    def store_token(self, path: str):
+    def store_token(self, path: str) -> None:
         """Stores the token to a file.
 
         Args:
@@ -166,7 +167,7 @@ class WhoopClient:
         return res, state
 
     @classmethod
-    def _parse_token(cls, payload, scopes):
+    def _parse_token(cls, payload: dict[str, Any], scopes: list[str] | None) -> tuple[dict[str, Any], list[str]]:
         url = f"{API_AUTH}/token"
 
         # retrieve the codes
@@ -250,7 +251,7 @@ class WhoopClient:
 
         # complete
 
-    def refresh(self):
+    def refresh(self) -> None:
         """Refreshes the token provided."""
         # verify client is setup correctly
         if self.refresh_token is None:

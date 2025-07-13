@@ -11,7 +11,10 @@ import asyncio
 import functools
 from collections.abc import Callable
 from datetime import datetime
-from typing import TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar
+
+if TYPE_CHECKING:
+    from whoopy.handlers import handlers_v2
 from uuid import UUID
 
 import pandas as pd
@@ -23,7 +26,7 @@ from .utils import RetryConfig, TokenInfo
 T = TypeVar("T")
 
 
-def run_async(coro):
+def run_async(coro: Any) -> Any:
     """Run an async coroutine in a sync context."""
     import contextlib
 
@@ -38,11 +41,11 @@ def run_async(coro):
     return asyncio.run(coro)
 
 
-def async_to_sync(method: Callable) -> Callable:
+def async_to_sync(method: Callable[..., Any]) -> Callable[..., Any]:
     """Decorator to convert async methods to sync."""
 
     @functools.wraps(method)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any) -> Any:
         coro = method(*args, **kwargs)
         return run_async(coro)
 
@@ -52,7 +55,7 @@ def async_to_sync(method: Callable) -> Callable:
 class SyncUserHandler:
     """Synchronous wrapper for UserHandler."""
 
-    def __init__(self, async_handler):
+    def __init__(self, async_handler: "handlers_v2.UserHandler") -> None:
         self._handler = async_handler
 
     @async_to_sync
@@ -68,6 +71,8 @@ class SyncUserHandler:
 
 class SyncCollectionMixin:
     """Mixin for synchronous collection operations."""
+    
+    _handler: Any  # Will be set by subclasses
 
     @async_to_sync
     async def get_page(
@@ -76,7 +81,7 @@ class SyncCollectionMixin:
         start: str | datetime | None = None,
         end: str | datetime | None = None,
         next_token: str | None = None,
-    ):
+    ) -> Any:
         """Get a single page of results."""
         return await self._handler.get_page(limit=limit, start=start, end=end, next_token=next_token)
 
@@ -87,14 +92,14 @@ class SyncCollectionMixin:
         end: str | datetime | None = None,
         limit_per_page: int = 25,
         max_records: int | None = None,
-    ):
+    ) -> list[Any]:
         """Get all items across all pages."""
         return await self._handler.get_all(start=start, end=end, limit_per_page=limit_per_page, max_records=max_records)
 
-    def iterate(self, start: str | datetime | None = None, end: str | datetime | None = None, limit_per_page: int = 25):
+    def iterate(self, start: str | datetime | None = None, end: str | datetime | None = None, limit_per_page: int = 25) -> list[Any]:
         """Iterate over all items across all pages."""
 
-        async def _iterate():
+        async def _iterate() -> list[Any]:
             items = []
             async for item in self._handler.iterate(start=start, end=end, limit_per_page=limit_per_page):
                 items.append(item)
@@ -111,6 +116,7 @@ class SyncCollectionMixin:
         limit_per_page: int = 25,
         max_records: int | None = None,
     ) -> pd.DataFrame:
+        # type: ignore[misc]
         """Get all items as a pandas DataFrame."""
         return await self._handler.get_dataframe(
             start=start, end=end, limit_per_page=limit_per_page, max_records=max_records
@@ -120,7 +126,7 @@ class SyncCollectionMixin:
 class SyncCycleHandler(SyncCollectionMixin):
     """Synchronous wrapper for CycleHandler."""
 
-    def __init__(self, async_handler):
+    def __init__(self, async_handler: Any) -> None:
         self._handler = async_handler
 
     @async_to_sync
@@ -137,7 +143,7 @@ class SyncCycleHandler(SyncCollectionMixin):
 class SyncSleepHandler(SyncCollectionMixin):
     """Synchronous wrapper for SleepHandler."""
 
-    def __init__(self, async_handler):
+    def __init__(self, async_handler: Any) -> None:
         self._handler = async_handler
 
     @async_to_sync
@@ -149,7 +155,7 @@ class SyncSleepHandler(SyncCollectionMixin):
 class SyncRecoveryHandler(SyncCollectionMixin):
     """Synchronous wrapper for RecoveryHandler."""
 
-    def __init__(self, async_handler):
+    def __init__(self, async_handler: Any) -> None:
         self._handler = async_handler
 
     @async_to_sync
@@ -161,7 +167,7 @@ class SyncRecoveryHandler(SyncCollectionMixin):
 class SyncWorkoutHandler(SyncCollectionMixin):
     """Synchronous wrapper for WorkoutHandler."""
 
-    def __init__(self, async_handler):
+    def __init__(self, async_handler: Any) -> None:
         self._handler = async_handler
 
     @async_to_sync
@@ -226,10 +232,10 @@ class WhoopClientV2Sync:
         # Initialize the client
         self._initialize()
 
-    def _initialize(self):
+    def _initialize(self) -> None:
         """Initialize the async client and create sync handlers."""
 
-        async def _init():
+        async def _init() -> Any:
             async with self._async_client as client:
                 # Create sync wrappers for handlers
                 self._user = SyncUserHandler(client.user)
@@ -318,7 +324,7 @@ class WhoopClientV2Sync:
             Authenticated WhoopClientV2Sync instance
         """
 
-        async def _auth():
+        async def _auth() -> TokenInfo:
             client = await WhoopClientV2.auth_flow(
                 client_id=client_id,
                 client_secret=client_secret,
@@ -326,7 +332,10 @@ class WhoopClientV2Sync:
                 scopes=scopes,
                 open_browser=open_browser,
             )
-            return client.token_info
+            token = client.token_info
+            if token is None:
+                raise RuntimeError("Failed to authenticate")
+            return token
 
         token_info = run_async(_auth())
 

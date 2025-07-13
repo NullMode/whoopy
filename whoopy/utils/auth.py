@@ -10,6 +10,8 @@ import webbrowser
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, ClassVar
+
+import aiohttp
 from urllib.parse import urlencode
 
 from whoopy.constants import HTTP_OK
@@ -25,15 +27,17 @@ class TokenInfo:
     refresh_token: str | None
     scopes: list[str]
     token_type: str = "Bearer"
-    created_at: datetime = None
+    created_at: datetime | None = None
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.created_at is None:
             self.created_at = datetime.now(timezone.utc)
 
     @property
     def is_expired(self) -> bool:
         """Check if the token has expired."""
+        if self.created_at is None:
+            return True  # Consider expired if no creation time
         expiry_time = self.created_at + timedelta(seconds=self.expires_in)
         # Add 60 second buffer to account for clock skew
         return datetime.now(timezone.utc) >= expiry_time - timedelta(seconds=60)
@@ -41,6 +45,9 @@ class TokenInfo:
     @property
     def expires_at(self) -> datetime:
         """Get the expiration time of the token."""
+        if self.created_at is None:
+            # Should not happen due to __post_init__, but mypy doesn't know that
+            return datetime.now(timezone.utc)
         return self.created_at + timedelta(seconds=self.expires_in)
 
     def to_dict(self) -> dict[str, Any]:
@@ -51,7 +58,7 @@ class TokenInfo:
             "refresh_token": self.refresh_token,
             "scopes": self.scopes,
             "token_type": self.token_type,
-            "created_at": self.created_at.isoformat(),
+            "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
     @classmethod
@@ -67,7 +74,7 @@ class TokenInfo:
             refresh_token=data.get("refresh_token"),
             scopes=data.get("scopes", []),
             token_type=data.get("token_type", "Bearer"),
-            created_at=created_at,
+            created_at=created_at or datetime.now(timezone.utc),
         )
 
 
@@ -120,7 +127,7 @@ class OAuth2Helper:
         webbrowser.open(url)
         return url
 
-    async def exchange_code_for_token(self, session, code: str) -> TokenInfo:
+    async def exchange_code_for_token(self, session: aiohttp.ClientSession, code: str) -> TokenInfo:
         """Exchange authorization code for access token."""
         data = {
             "grant_type": "authorization_code",
@@ -148,7 +155,7 @@ class OAuth2Helper:
             token_type=token_data.get("token_type", "Bearer"),
         )
 
-    async def refresh_access_token(self, session, refresh_token: str) -> TokenInfo:
+    async def refresh_access_token(self, session: aiohttp.ClientSession, refresh_token: str) -> TokenInfo:
         """Refresh an expired access token."""
         data = {
             "grant_type": "refresh_token",
@@ -175,7 +182,7 @@ class OAuth2Helper:
             token_type=token_data.get("token_type", "Bearer"),
         )
 
-    def save_token(self, token: TokenInfo, path: str = ".whoop_credentials.json"):
+    def save_token(self, token: TokenInfo, path: str = ".whoop_credentials.json") -> None:
         """Save token to file."""
         # Create directory if it doesn't exist
         dir_path = os.path.dirname(path)

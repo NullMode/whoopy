@@ -194,3 +194,9 @@ ignore_missing_imports = true
 line-length = 120
 target-version = ["py310", "py311", "py312", "py313"]
 include = '\.pyi?$'
+
+[dependency-groups]
+dev = [
+    "types-python-dateutil>=2.9.0.20250708",
+    "types-requests>=2.32.4.20250611",
+]

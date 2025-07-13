@@ -3,7 +3,7 @@
 Copyright (c) 2024 Felix Geilert
 """
 
-from collections.abc import AsyncIterator, Callable
+from collections.abc import AsyncIterator, Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
@@ -28,7 +28,7 @@ class PaginatedResponse(Generic[T]):
 class PaginationHelper(Generic[T]):
     """Helper class for handling paginated API responses."""
 
-    def __init__(self, fetch_page: Callable[..., PaginatedResponse[T]], model_class: type[T]):
+    def __init__(self, fetch_page: Callable[..., Awaitable[PaginatedResponse[T]]], model_class: type[T]):
         """
         Initialize pagination helper.
 
@@ -39,11 +39,11 @@ class PaginationHelper(Generic[T]):
         self.fetch_page = fetch_page
         self.model_class = model_class
 
-    async def get_page(self, limit: int = 10, next_token: str | None = None, **kwargs) -> PaginatedResponse[T]:
+    async def get_page(self, limit: int = 10, next_token: str | None = None, **kwargs: Any) -> PaginatedResponse[T]:
         """Fetch a single page of results."""
         return await self.fetch_page(limit=limit, next_token=next_token, **kwargs)
 
-    async def get_all(self, limit_per_page: int = 25, max_records: int | None = None, **kwargs) -> list[T]:
+    async def get_all(self, limit_per_page: int = 25, max_records: int | None = None, **kwargs: Any) -> list[T]:
         """
         Fetch all records across all pages.
 
@@ -55,7 +55,7 @@ class PaginationHelper(Generic[T]):
         Returns:
             List of all records
         """
-        all_records = []
+        all_records: list[T] = []
         next_token = None
 
         while True:
@@ -85,7 +85,7 @@ class PaginationHelper(Generic[T]):
 
         return all_records[:max_records] if max_records else all_records
 
-    async def iterate(self, limit_per_page: int = 25, **kwargs) -> AsyncIterator[T]:
+    async def iterate(self, limit_per_page: int = 25, **kwargs: Any) -> AsyncIterator[T]:
         """
         Iterate over all records across all pages.
 
@@ -112,7 +112,7 @@ class PaginationHelper(Generic[T]):
 
             next_token = page.next_token
 
-    async def iterate_pages(self, limit_per_page: int = 25, **kwargs) -> AsyncIterator[PaginatedResponse[T]]:
+    async def iterate_pages(self, limit_per_page: int = 25, **kwargs: Any) -> AsyncIterator[PaginatedResponse[T]]:
         """
         Iterate over pages of results.
 

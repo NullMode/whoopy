@@ -3,7 +3,10 @@
 Copyright (c) 2022 Felix Geilert
 """
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from whoopy.client_v1 import WhoopClient
 
 import pandas as pd
 import requests
@@ -14,7 +17,7 @@ from whoopy.models import models_v1 as models
 
 
 class WhoopHandler:
-    def __init__(self, client) -> None:
+    def __init__(self, client: "WhoopClient") -> None:
         self.client = client
 
     def _check_datetime(self, date: str) -> str:
@@ -25,14 +28,14 @@ class WhoopHandler:
             raise ValueError(f"Invalid Date provided: {date}")
 
         # make sure this is converted to correct format used by whoop
-        return new_date.isoformat() + "Z"
+        return str(new_date.isoformat()) + "Z"
 
-    def _get(self, path: str, params: dict | None = None, **kwargs) -> requests.Response:
+    def _get(self, path: str, params: dict[str, Any] | None = None, **kwargs: Any) -> requests.Response:
         """Sends a GET request to the Whoop API."""
         path = f"{self.client._base_path}/{path}"  # noqa: SLF001
         return self.client.session.get(path, params=params, **kwargs)
 
-    def _post(self, path: str, data: dict | None = None, **kwargs) -> requests.Response:
+    def _post(self, path: str, data: dict[str, Any] | None = None, **kwargs: Any) -> requests.Response:
         """Sends a POST request to the Whoop API."""
         path = f"{self.client._base_path}/{path}"  # noqa: SLF001
         return self.client.session.post(path, data=data, **kwargs)
@@ -41,11 +44,13 @@ class WhoopHandler:
         """Verifies the response from the Whoop API."""
         if res.status_code != HTTP_OK:
             raise Exception(f"Whoop API returned status code {res.status_code}.")
-        return res.json()
+        data = res.json()
+        assert isinstance(data, dict)
+        return data
 
 
 class WhoopUserHandler(WhoopHandler):
-    def __init__(self, client) -> None:
+    def __init__(self, client: "WhoopClient") -> None:
         super().__init__(client)
 
     def profile(self) -> models.UserProfile:
@@ -86,7 +91,7 @@ class WhoopDataHandler(WhoopHandler):
         end: str | None = None,
         next: str | None = None,
         limit: int = 25,
-    ) -> tuple[dict, str]:
+    ) -> tuple[list[dict[str, Any]], str | None]:
         """Gets the data from the Whoop API."""
         params = self._params(start, end, next, limit)
         res = self._get(path, params=params)
@@ -105,7 +110,7 @@ class WhoopDataHandler(WhoopHandler):
             raise ValueError("Limit must be between 1 and 25.")
 
         # generate params
-        params = {"limit": limit}
+        params: dict[str, Any] = {"limit": limit}
         if start:
             params["start"] = self._check_datetime(start)
         if end:
@@ -117,8 +122,8 @@ class WhoopDataHandler(WhoopHandler):
 
     def single(self, id: int, correct_offset: bool = True) -> models.UserData:
         """Gets a single data object from the Whoop API."""
-        path = self._path_single.split("@", 1)
-        path = f"{path[0]}{id}{path[1] if len(path) > 1 else ''}"
+        path_parts = self._path_single.split("@", 1)
+        path = f"{path_parts[0]}{id}{path_parts[1] if len(path_parts) > 1 else ''}"
         res = self._get(path)
         data = self._verify(res)
         return self._model.from_dict(data, correct_offset=correct_offset)
@@ -131,7 +136,7 @@ class WhoopDataHandler(WhoopHandler):
         limit: int = 25,
         get_all_pages: bool = True,
         correct_offset: bool = True,
-    ) -> tuple[list[models.UserData], str]:
+    ) -> tuple[list[models.UserData], str | None]:
         """Gets a collection of data from the Whoop API."""
         recs, token = self._get_data(self._path, start, end, next, limit)
         items = [self._model.from_dict(c, correct_offset=correct_offset) for c in recs]
@@ -152,7 +157,7 @@ class WhoopDataHandler(WhoopHandler):
         limit: int = 25,
         get_all_pages: bool = True,
         correct_offset: bool = True,
-    ) -> tuple[pd.DataFrame, str]:
+    ) -> tuple[pd.DataFrame, str | None]:
         """Gets a collection of data from the Whoop API."""
         recs, token = self.collection(start, end, next, limit, get_all_pages, correct_offset)
         df = self._to_df(recs)
@@ -166,20 +171,20 @@ class WhoopDataHandler(WhoopHandler):
 
 
 class WhoopCycleHandler(WhoopDataHandler):
-    def __init__(self, client) -> None:
+    def __init__(self, client: "WhoopClient") -> None:
         super().__init__(client, "cycle", models.UserCycle)
 
 
 class WhoopSleepHandler(WhoopDataHandler):
-    def __init__(self, client) -> None:
+    def __init__(self, client: "WhoopClient") -> None:
         super().__init__(client, "activity/sleep", models.UserSleep)
 
 
 class WhoopRecoveryHandler(WhoopDataHandler):
-    def __init__(self, client) -> None:
+    def __init__(self, client: "WhoopClient") -> None:
         super().__init__(client, "recovery", models.UserRecovery, "cycle/@/recovery")
 
 
 class WhoopWorkoutHandler(WhoopDataHandler):
-    def __init__(self, client) -> None:
+    def __init__(self, client: "WhoopClient") -> None:
         super().__init__(client, "activity/workout", models.UserWorkout)

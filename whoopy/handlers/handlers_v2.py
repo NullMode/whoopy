@@ -6,10 +6,14 @@ Copyright (c) 2024 Felix Geilert
 from __future__ import annotations
 
 from datetime import datetime
+from typing import TYPE_CHECKING
 from uuid import UUID
 
 from whoopy.exceptions import ResourceNotFoundError
 from whoopy.models import models_v2 as models
+
+if TYPE_CHECKING:
+    from whoopy.client_v2 import WhoopClientV2
 
 from .base_v2 import BaseHandler, CollectionHandler, CombinedHandler
 
@@ -31,13 +35,13 @@ class UserHandler(BaseHandler):
 class CycleHandler(CombinedHandler[models.Cycle]):
     """Handler for cycle endpoints."""
 
-    def __init__(self, client):
+    def __init__(self, client: "WhoopClientV2"):
         super().__init__(
             client=client,
             resource_path="cycle",
             collection_path="cycle",
             model_class=models.Cycle,
-            response_class=models.PaginatedCycleResponse,
+            response_class=models.PaginatedCycleResponse,  # type: ignore[arg-type]
         )
 
     async def get_sleep(self, cycle_id: int) -> models.Sleep:
@@ -65,16 +69,16 @@ class CycleHandler(CombinedHandler[models.Cycle]):
 class SleepHandler(CombinedHandler[models.Sleep]):
     """Handler for sleep endpoints."""
 
-    def __init__(self, client):
+    def __init__(self, client: "WhoopClientV2"):
         super().__init__(
             client=client,
             resource_path="activity/sleep",
             collection_path="activity/sleep",
             model_class=models.Sleep,
-            response_class=models.PaginatedSleepResponse,
+            response_class=models.PaginatedSleepResponse,  # type: ignore[arg-type]
         )
 
-    async def get_by_id(self, sleep_id: str | UUID) -> models.Sleep:
+    async def get_by_id(self, sleep_id: str | UUID) -> models.Sleep:  # type: ignore[override]
         """
         Get a sleep activity by ID.
 
@@ -94,12 +98,12 @@ class SleepHandler(CombinedHandler[models.Sleep]):
 class RecoveryHandler(CollectionHandler[models.Recovery]):
     """Handler for recovery endpoints."""
 
-    def __init__(self, client):
+    def __init__(self, client: "WhoopClientV2"):
         super().__init__(
             client=client,
             collection_path="activity/recovery",
             model_class=models.Recovery,
-            response_class=models.RecoveryCollection,
+            response_class=models.RecoveryCollection,  # type: ignore[arg-type]
         )
 
     async def get_for_cycle(self, cycle_id: int) -> models.Recovery:
@@ -127,16 +131,16 @@ class RecoveryHandler(CollectionHandler[models.Recovery]):
 class WorkoutHandler(CombinedHandler[models.WorkoutV2]):
     """Handler for workout endpoints."""
 
-    def __init__(self, client):
+    def __init__(self, client: "WhoopClientV2"):
         super().__init__(
             client=client,
             resource_path="activity/workout",
             collection_path="activity/workout",
             model_class=models.WorkoutV2,
-            response_class=models.WorkoutCollection,
+            response_class=models.WorkoutCollection,  # type: ignore[arg-type]
         )
 
-    async def get_by_id(self, workout_id: str | UUID) -> models.WorkoutV2:
+    async def get_by_id(self, workout_id: str | UUID) -> models.WorkoutV2:  # type: ignore[override]
         """
         Get a workout by ID.
 

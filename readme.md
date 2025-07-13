@@ -65,6 +65,17 @@ Create a `config.json` file:
 }
 ```
 
+> **Note**: The library also supports a nested config structure for backward compatibility:
+> ```json
+> {
+>     "whoop": {
+>         "client_id": "YOUR_CLIENT_ID",
+>         "client_secret": "YOUR_CLIENT_SECRET",
+>         "redirect_uri": "http://localhost:1234"
+>     }
+> }
+> ```
+
 ### 3. Run the Example
 
 ```bash

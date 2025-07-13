@@ -7,7 +7,10 @@ from __future__ import annotations
 
 from abc import ABC
 from datetime import datetime
-from typing import Any, Generic, TypeVar
+from typing import TYPE_CHECKING, Any, AsyncIterator, Generic, TypeVar
+
+if TYPE_CHECKING:
+    from whoopy.client_v2 import WhoopClientV2
 
 import pandas as pd
 
@@ -21,7 +24,7 @@ T = TypeVar("T", bound=models.BaseWhoopModel)
 class BaseHandler(ABC):  # noqa: B024
     """Base handler for API resources."""
 
-    def __init__(self, client):
+    def __init__(self, client: "WhoopClientV2"):
         """
         Initialize handler.
 
@@ -30,12 +33,12 @@ class BaseHandler(ABC):  # noqa: B024
         """
         self.client = client
 
-    async def _get(self, path: str, **kwargs) -> Any:
+    async def _get(self, path: str, **kwargs: Any) -> Any:
         """Make a GET request."""
         response = await self.client.request("GET", path, **kwargs)
         return await response.json()
 
-    async def _post(self, path: str, **kwargs) -> Any:
+    async def _post(self, path: str, **kwargs: Any) -> Any:
         """Make a POST request."""
         response = await self.client.request("POST", path, **kwargs)
         return await response.json()
@@ -59,7 +62,7 @@ class BaseHandler(ABC):  # noqa: B024
 class ResourceHandler(BaseHandler, Generic[T]):
     """Base handler for single resources."""
 
-    def __init__(self, client, resource_path: str, model_class: type[T]):
+    def __init__(self, client: "WhoopClientV2", resource_path: str, model_class: type[T]):
         """
         Initialize resource handler.
 
@@ -100,7 +103,7 @@ class ResourceHandler(BaseHandler, Generic[T]):
 class CollectionHandler(BaseHandler, Generic[T]):
     """Base handler for resource collections with pagination."""
 
-    def __init__(self, client, collection_path: str, model_class: type[T], response_class: type[PaginatedResponse]):
+    def __init__(self, client: "WhoopClientV2", collection_path: str, model_class: type[T], response_class: type[PaginatedResponse]):
         """
         Initialize collection handler.
 
@@ -118,7 +121,7 @@ class CollectionHandler(BaseHandler, Generic[T]):
         # Create pagination helper
         self._pagination = PaginationHelper(fetch_page=self._fetch_page, model_class=model_class)
 
-    async def _fetch_page(self, **params) -> PaginatedResponse[T]:
+    async def _fetch_page(self, **params: Any) -> PaginatedResponse[T]:
         """Fetch a single page of results."""
         # Clean up parameters
         cleaned_params = {}
@@ -127,10 +130,10 @@ class CollectionHandler(BaseHandler, Generic[T]):
             cleaned_params["limit"] = min(max(1, int(params["limit"])), 25)
 
         if "start" in params and params["start"] is not None:
-            cleaned_params["start"] = self._parse_datetime(params["start"])
+            cleaned_params["start"] = self._parse_datetime(params["start"])  # type: ignore[assignment]
 
         if "end" in params and params["end"] is not None:
-            cleaned_params["end"] = self._parse_datetime(params["end"])
+            cleaned_params["end"] = self._parse_datetime(params["end"])  # type: ignore[assignment]
 
         if "next_token" in params and params["next_token"] is not None:
             cleaned_params["nextToken"] = params["next_token"]
@@ -188,7 +191,7 @@ class CollectionHandler(BaseHandler, Generic[T]):
 
     async def iterate(
         self, start: str | datetime | None = None, end: str | datetime | None = None, limit_per_page: int = 25
-    ):
+    ) -> AsyncIterator[T]:
         """
         Iterate over all items across all pages.
 
@@ -224,7 +227,7 @@ class CollectionHandler(BaseHandler, Generic[T]):
         """
         items = await self.get_all(start=start, end=end, limit_per_page=limit_per_page, max_records=max_records)
 
-        return models.models_to_dataframe(items)
+        return models.models_to_dataframe(items)  # type: ignore[arg-type]
 
 
 class CombinedHandler(ResourceHandler[T], CollectionHandler[T]):
@@ -232,11 +235,11 @@ class CombinedHandler(ResourceHandler[T], CollectionHandler[T]):
 
     def __init__(
         self,
-        client,
+        client: "WhoopClientV2",
         resource_path: str,
         collection_path: str,
         model_class: type[T],
-        response_class: type[PaginatedResponse],
+        response_class: type[PaginatedResponse[Any]],
     ):
         """
         Initialize combined handler.
