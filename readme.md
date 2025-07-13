@@ -69,10 +69,10 @@ Create a `config.json` file:
 
 ```bash
 # Run the example script
-uv run python -m whoopy.example
+uv run python -m tools.example
 
 # Or if using standard Python
-python -m whoopy.example
+python -m tools.example
 ```
 
 ## Usage Examples

@@ -6,8 +6,9 @@ Copyright (c) 2022 Felix Geilert
 from abc import abstractmethod
 from datetime import datetime, timedelta
 from typing import Any
-from pydantic import BaseModel
+
 import time_helper as th
+from pydantic import BaseModel
 
 
 class UserProfile(BaseModel):
@@ -146,13 +147,8 @@ class UserSleep(UserData):
     def _dict_parse(cls, data: dict):
         if "score" in data and data["score"] is not None:
             score_dict = data["score"]
-            if (
-                "stage_summary" in score_dict
-                and score_dict["stage_summary"] is not None
-            ):
-                score_dict["stage_summary"] = UserSleepStages(
-                    **score_dict["stage_summary"]
-                )
+            if "stage_summary" in score_dict and score_dict["stage_summary"] is not None:
+                score_dict["stage_summary"] = UserSleepStages(**score_dict["stage_summary"])
             else:
                 score_dict["stage_summary"] = None
             if "sleep_needed" in score_dict and score_dict["sleep_needed"] is not None:
@@ -228,13 +224,8 @@ class UserWorkout(UserData):
     def _dict_parse(cls, data: dict):
         if "score" in data and data["score"] is not None:
             score_dict = data["score"]
-            if (
-                "zone_duration" in score_dict
-                and score_dict["zone_duration"] is not None
-            ):
-                score_dict["zone_duration"] = UserWorkoutZoneDuration(
-                    **score_dict["zone_duration"]
-                )
+            if "zone_duration" in score_dict and score_dict["zone_duration"] is not None:
+                score_dict["zone_duration"] = UserWorkoutZoneDuration(**score_dict["zone_duration"])
             data["score"] = UserWorkoutScore(**score_dict)
 
         return data

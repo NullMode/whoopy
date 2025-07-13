@@ -3,8 +3,9 @@
 Copyright (c) 2024 Felix Geilert
 """
 
-import pytest
 import asyncio
+
+import pytest
 
 
 @pytest.fixture(scope="session")

@@ -7,13 +7,14 @@ Copyright 2022 (C) Felix Geilert
 
 import json
 import os
-import requests
-from typing_extensions import Self
 import uuid
 import webbrowser
 
-from .handlers import handler_v1 as handlers
+import requests
+from typing_extensions import Self
 
+from .constants import HTTP_OK, MIN_PASSWORD_LENGTH
+from .handlers import handler_v1 as handlers
 
 API_VERSION = "1"
 API_BASE = "https://api.prod.whoop.com/"
@@ -35,9 +36,9 @@ class WhoopClient:
         access_token: str,
         expires_in: int,
         scopes: list[str],
-        refresh_token: str = None,
-        client_id: str = None,
-        client_secret: str = None,
+        refresh_token: str | None = None,
+        client_id: str | None = None,
+        client_secret: str | None = None,
     ):
         """Creates a new WhoopClient.
 
@@ -104,9 +105,7 @@ class WhoopClient:
             json.dump(self._token, f)
 
     @classmethod
-    def from_token(
-        cls, path: str, client_id: str, client_secret: str, overwrite_token: bool = True
-    ) -> Self:
+    def from_token(cls, path: str, client_id: str, client_secret: str, overwrite_token: bool = True) -> Self:
         """Loads a token from a file.
 
         Args:
@@ -114,7 +113,7 @@ class WhoopClient:
             client_id (str): The client ID.
             client_secret (str): The client secret.
         """
-        with open(path, "r") as f:
+        with open(path) as f:
             token = json.load(f)
         client = cls(
             token["access_token"],
@@ -139,8 +138,8 @@ class WhoopClient:
         client_id: str,
         client_secret: str,
         redirect_uri: str,
-        state: str = None,
-        scopes: list[str] = None,
+        state: str | None = None,
+        scopes: list[str] | None = None,
     ) -> tuple[str, str]:
         """Generates authorization url for the Whoop API."""
         # check state
@@ -148,7 +147,7 @@ class WhoopClient:
             state = str(uuid.uuid4())
 
         # retrieve the data
-        if len(state) < 8:
+        if len(state) < MIN_PASSWORD_LENGTH:
             raise ValueError("State must be at least 8 characters long")
 
         # generate the
@@ -172,7 +171,7 @@ class WhoopClient:
 
         # retrieve the codes
         res = requests.post(url, data=payload)
-        if res.status_code != 200:
+        if res.status_code != HTTP_OK:
             raise RuntimeError(f"Authorization failed with code {res.status_code}")
         codes = res.json()
         token_scopes = codes["scope"].split(" ")
@@ -192,7 +191,7 @@ class WhoopClient:
         client_id: str,
         client_secret: str,
         redirect_url: str = "https://jwt.ms/",
-        scopes: list[str] = None,
+        scopes: list[str] | None = None,
     ) -> Self:
         """Authorize the client with the given code."""
         # generate request using the code
@@ -221,8 +220,8 @@ class WhoopClient:
         client_id: str,
         client_secret: str,
         redirect_url: str = "https://jwt.ms/",
-        state: str = None,
-        scopes: list[str] = None,
+        state: str | None = None,
+        scopes: list[str] | None = None,
     ) -> Self:
         """Runs through the entire auth flow.
 
@@ -247,10 +246,9 @@ class WhoopClient:
         code = input("Copy Code Attribute from URL: ")
 
         # authorize
-        client = cls.authorize(code, client_id, client_secret, redirect_url, scopes)
+        return cls.authorize(code, client_id, client_secret, redirect_url, scopes)
 
         # complete
-        return client
 
     def refresh(self):
         """Refreshes the token provided."""
@@ -280,9 +278,7 @@ class WhoopClient:
         self._update_session()
 
     @classmethod
-    def from_token_or_flow(
-        cls, secret_json: str, token_path: str, scopes: list[str] = None
-    ) -> Self:
+    def from_token_or_flow(cls, secret_json: str, token_path: str, scopes: list[str] | None = None) -> Self:
         """Creates a new WhoopClient from a token or by using the authorization flow.
 
         Args:
@@ -290,7 +286,7 @@ class WhoopClient:
             token_path (str): The path to the token file.
         """
         # load the secret
-        with open(secret_json, "r") as f:
+        with open(secret_json) as f:
             secret = json.load(f)
 
         # check if token exists

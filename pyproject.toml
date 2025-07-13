@@ -124,7 +124,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/*" = ["ARG", "SLF001", "PLR2004", "S101"]
-"whoopy/example.py" = ["T201"]  # Allow print statements in example
+"tools/example.py" = ["T201"]  # Allow print statements in example
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -150,7 +150,6 @@ source = ["whoopy"]
 omit = [
     "*/tests/*",
     "*/__init__.py",
-    "*/example.py",
 ]
 
 [tool.coverage.report]

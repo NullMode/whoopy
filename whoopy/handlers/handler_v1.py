@@ -9,6 +9,7 @@ import pandas as pd
 import requests
 import time_helper as th
 
+from whoopy.constants import DEFAULT_PAGE_SIZE, HTTP_OK
 from whoopy.models import models_v1 as models
 
 
@@ -26,19 +27,19 @@ class WhoopHandler:
         # make sure this is converted to correct format used by whoop
         return new_date.isoformat() + "Z"
 
-    def _get(self, path: str, params: dict = None, **kwargs) -> requests.Response:
+    def _get(self, path: str, params: dict | None = None, **kwargs) -> requests.Response:
         """Sends a GET request to the Whoop API."""
-        path = f"{self.client._base_path}/{path}"
+        path = f"{self.client._base_path}/{path}"  # noqa: SLF001
         return self.client.session.get(path, params=params, **kwargs)
 
-    def _post(self, path: str, data: dict = None, **kwargs) -> requests.Response:
+    def _post(self, path: str, data: dict | None = None, **kwargs) -> requests.Response:
         """Sends a POST request to the Whoop API."""
-        path = f"{self.client._base_path}/{path}"
+        path = f"{self.client._base_path}/{path}"  # noqa: SLF001
         return self.client.session.post(path, data=data, **kwargs)
 
     def _verify(self, res: requests.Response) -> dict[str, Any]:
         """Verifies the response from the Whoop API."""
-        if res.status_code != 200:
+        if res.status_code != HTTP_OK:
             raise Exception(f"Whoop API returned status code {res.status_code}.")
         return res.json()
 
@@ -71,7 +72,7 @@ class WhoopDataHandler(WhoopHandler):
         client: Any,
         path: str,
         model: type[models.UserData],
-        path_single: str = None,
+        path_single: str | None = None,
     ) -> None:
         super().__init__(client)
         self._path = path
@@ -81,9 +82,9 @@ class WhoopDataHandler(WhoopHandler):
     def _get_data(
         self,
         path: str,
-        start: str = None,
-        end: str = None,
-        next: str = None,
+        start: str | None = None,
+        end: str | None = None,
+        next: str | None = None,
         limit: int = 25,
     ) -> tuple[dict, str]:
         """Gets the data from the Whoop API."""
@@ -96,11 +97,9 @@ class WhoopDataHandler(WhoopHandler):
         """Converts the given data to a pandas DataFrame."""
         return pd.json_normalize([d.dict() for d in data])
 
-    def _params(
-        self, start: str = None, end: str = None, next: str = None, limit: int = 10
-    ) -> dict[str, Any]:
+    def _params(self, start: str | None = None, end: str | None = None, next: str | None = None, limit: int = 10) -> dict[str, Any]:
         # check limit value
-        if limit > 25 or limit < 1:
+        if limit > DEFAULT_PAGE_SIZE or limit < 1:
             raise ValueError("Limit must be between 1 and 25.")
 
         # generate params
@@ -124,9 +123,9 @@ class WhoopDataHandler(WhoopHandler):
 
     def collection(
         self,
-        start: str = None,
-        end: str = None,
-        next: str = None,
+        start: str | None = None,
+        end: str | None = None,
+        next: str | None = None,
         limit: int = 25,
         get_all_pages: bool = True,
         correct_offset: bool = True,
@@ -138,26 +137,22 @@ class WhoopDataHandler(WhoopHandler):
         # get more data if there is a next token
         if get_all_pages:
             while token:
-                data, token = self.collection(
-                    start=start, end=end, next=token, limit=limit, get_all_pages=False
-                )
+                data, token = self.collection(start=start, end=end, next=token, limit=limit, get_all_pages=False)
                 items.extend(data)
 
         return items, token
 
     def collection_df(
         self,
-        start: str = None,
-        end: str = None,
-        next: str = None,
+        start: str | None = None,
+        end: str | None = None,
+        next: str | None = None,
         limit: int = 25,
         get_all_pages: bool = True,
         correct_offset: bool = True,
     ) -> tuple[pd.DataFrame, str]:
         """Gets a collection of data from the Whoop API."""
-        recs, token = self.collection(
-            start, end, next, limit, get_all_pages, correct_offset
-        )
+        recs, token = self.collection(start, end, next, limit, get_all_pages, correct_offset)
         df = self._to_df(recs)
 
         return df, token

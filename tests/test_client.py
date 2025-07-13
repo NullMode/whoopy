@@ -3,7 +3,6 @@
 Copyright 2022 (C) Felix Geilert
 """
 
-
 from whoopy import WhoopClientV1
 
 
