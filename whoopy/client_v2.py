@@ -203,11 +203,14 @@ class WhoopClientV2:
                 raise TokenExpiredError(details={"status": HTTP_UNAUTHORIZED, "response": error_data})
             raise AuthenticationError(details={"status": HTTP_UNAUTHORIZED, "response": error_data})
         if response.status == HTTP_NOT_FOUND:
-            raise ResourceNotFoundError(resource_type="Resource", details={"status": HTTP_NOT_FOUND, "response": error_data})
+            raise ResourceNotFoundError(
+                resource_type="Resource", details={"status": HTTP_NOT_FOUND, "response": error_data}
+            )
         if response.status == HTTP_TOO_MANY_REQUESTS:
             retry_after = response.headers.get("Retry-After")
             raise RateLimitError(
-                retry_after=int(retry_after) if retry_after else None, details={"status": HTTP_TOO_MANY_REQUESTS, "response": error_data}
+                retry_after=int(retry_after) if retry_after else None,
+                details={"status": HTTP_TOO_MANY_REQUESTS, "response": error_data},
             )
         if response.status >= HTTP_INTERNAL_SERVER_ERROR:
             raise ServerError(

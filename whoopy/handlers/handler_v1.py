@@ -97,7 +97,9 @@ class WhoopDataHandler(WhoopHandler):
         """Converts the given data to a pandas DataFrame."""
         return pd.json_normalize([d.dict() for d in data])
 
-    def _params(self, start: str | None = None, end: str | None = None, next: str | None = None, limit: int = 10) -> dict[str, Any]:
+    def _params(
+        self, start: str | None = None, end: str | None = None, next: str | None = None, limit: int = 10
+    ) -> dict[str, Any]:
         # check limit value
         if limit > DEFAULT_PAGE_SIZE or limit < 1:
             raise ValueError("Limit must be between 1 and 25.")

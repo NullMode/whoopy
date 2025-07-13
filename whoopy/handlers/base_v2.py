@@ -91,7 +91,9 @@ class ResourceHandler(BaseHandler, Generic[T]):
             return self.model_class(**data)
         except Exception as e:
             if "404" in str(e):
-                raise ResourceNotFoundError(resource_type=self.model_class.__name__, resource_id=str(resource_id)) from e
+                raise ResourceNotFoundError(
+                    resource_type=self.model_class.__name__, resource_id=str(resource_id)
+                ) from e
             raise
 
 
