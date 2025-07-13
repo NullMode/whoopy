@@ -6,14 +6,14 @@ build-backend = "hatchling.build"
 name = "whoopy"
 dynamic = ["version"]
 description = "Unofficial Client for the Whoop API"
-readme = "README.md"
+readme = "readme.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
 authors = [
-    {name = "Felix Geilert", email = ""},
+    {name = "Felix Geilert"},
 ]
 maintainers = [
-    {name = "Felix Geilert", email = ""},
+    {name = "Felix Geilert"},
 ]
 keywords = ["whoop", "api", "fitness", "health", "wearable"]
 classifiers = [
