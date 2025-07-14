@@ -1,0 +1,17 @@
+"""Constants used throughout the whoopy package.
+
+Copyright (c) 2024 Felix Geilert
+"""
+
+# HTTP Status Codes
+HTTP_OK = 200
+HTTP_BAD_REQUEST = 400
+HTTP_UNAUTHORIZED = 401
+HTTP_NOT_FOUND = 404
+HTTP_TOO_MANY_REQUESTS = 429
+HTTP_INTERNAL_SERVER_ERROR = 500
+
+# Other constants
+DEFAULT_PAGE_SIZE = 25
+MIN_PASSWORD_LENGTH = 8
+MAX_RETRY_ATTEMPTS = 3

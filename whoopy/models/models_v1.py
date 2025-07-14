@@ -5,9 +5,10 @@ Copyright (c) 2022 Felix Geilert
 
 from abc import abstractmethod
 from datetime import datetime, timedelta
-from typing import Dict, Any, Optional, Union
-from pydantic import BaseModel
+from typing import Any
+
 import time_helper as th
+from pydantic import BaseModel
 
 
 class UserProfile(BaseModel):
@@ -33,16 +34,16 @@ class UserData(BaseModel):
     user_id: int
     created_at: datetime
     updated_at: datetime
-    timezone_offset: Optional[str] = None
+    timezone_offset: str | None = None
     score_state: str
 
     @classmethod
     @abstractmethod
-    def _dict_parse(cls, data: Dict) -> Dict[str, Any]:
+    def _dict_parse(cls, data: dict) -> dict[str, Any]:
         return data
 
     @classmethod
-    def from_dict(cls, data: Dict, correct_offset: bool = False):
+    def from_dict(cls, data: dict, correct_offset: bool = False) -> "UserData":
         # generate timedelta from timezone offset
         td = timedelta(days=0)
         if correct_offset and "timezone_offset" in data:
@@ -80,7 +81,7 @@ class UserCycleScore(BaseModel):
     max_heart_rate: int
 
     @property
-    def calories(self):
+    def calories(self) -> float:
         return self.kilojoule / 4.184
 
 
@@ -89,11 +90,11 @@ class UserCycle(UserData):
 
     id: int
     start: datetime
-    end: Optional[datetime] = None
-    score: Optional[UserCycleScore] = None
+    end: datetime | None = None
+    score: UserCycleScore | None = None
 
     @classmethod
-    def _dict_parse(cls, data: Dict) -> Dict[str, Union[Any, UserCycleScore]]:
+    def _dict_parse(cls, data: dict) -> dict[str, Any]:
         if "score" in data and data["score"] is not None:
             data["score"] = UserCycleScore(**data["score"])
 
@@ -125,12 +126,12 @@ class UserSleepNeed(BaseModel):
 class UserSleepScore(BaseModel):
     """Stores the score of the user sleep."""
 
-    stage_summary: Optional[UserSleepStages] = None
-    sleep_needed: Optional[UserSleepNeed] = None
-    respiratory_rate: Optional[float] = None
-    sleep_performance_percentage: Optional[float] = None
-    sleep_consistency_percentage: Optional[float] = None
-    sleep_efficiency_percentage: Optional[float] = None
+    stage_summary: UserSleepStages | None = None
+    sleep_needed: UserSleepNeed | None = None
+    respiratory_rate: float | None = None
+    sleep_performance_percentage: float | None = None
+    sleep_consistency_percentage: float | None = None
+    sleep_efficiency_percentage: float | None = None
 
 
 class UserSleep(UserData):
@@ -139,20 +140,15 @@ class UserSleep(UserData):
     id: int
     nap: bool
     start: datetime
-    end: Optional[datetime] = None
-    score: Optional[UserSleepScore] = None
+    end: datetime | None = None
+    score: UserSleepScore | None = None
 
     @classmethod
-    def _dict_parse(cls, data: Dict):
+    def _dict_parse(cls, data: dict) -> dict[str, Any]:
         if "score" in data and data["score"] is not None:
             score_dict = data["score"]
-            if (
-                "stage_summary" in score_dict
-                and score_dict["stage_summary"] is not None
-            ):
-                score_dict["stage_summary"] = UserSleepStages(
-                    **score_dict["stage_summary"]
-                )
+            if "stage_summary" in score_dict and score_dict["stage_summary"] is not None:
+                score_dict["stage_summary"] = UserSleepStages(**score_dict["stage_summary"])
             else:
                 score_dict["stage_summary"] = None
             if "sleep_needed" in score_dict and score_dict["sleep_needed"] is not None:
@@ -171,8 +167,8 @@ class UserRecoveryScore(BaseModel):
     recovery_score: float
     resting_heart_rate: float
     hrv_rmssd_milli: float
-    spo2_percentage: Optional[float] = None
-    skin_temp_celsius: Optional[float] = None
+    spo2_percentage: float | None = None
+    skin_temp_celsius: float | None = None
 
 
 class UserRecovery(UserData):
@@ -183,7 +179,7 @@ class UserRecovery(UserData):
     score: UserRecoveryScore
 
     @classmethod
-    def _dict_parse(cls, data: Dict) -> Dict[str, Union[Any, UserRecoveryScore]]:
+    def _dict_parse(cls, data: dict) -> dict[str, Any]:
         if "score" in data and data["score"] is not None:
             data["score"] = UserRecoveryScore(**data["score"])
 
@@ -209,10 +205,10 @@ class UserWorkoutScore(BaseModel):
     max_heart_rate: int
     kilojoule: float
     percent_recorded: float
-    distance_meter: Optional[float] = None
-    altitude_gain_meter: Optional[float] = None
-    altitude_change_meter: Optional[float] = None
-    zone_duration: Optional[UserWorkoutZoneDuration] = None
+    distance_meter: float | None = None
+    altitude_gain_meter: float | None = None
+    altitude_change_meter: float | None = None
+    zone_duration: UserWorkoutZoneDuration | None = None
 
 
 class UserWorkout(UserData):
@@ -220,21 +216,16 @@ class UserWorkout(UserData):
 
     id: int
     start: datetime
-    end: Optional[datetime] = None
+    end: datetime | None = None
     sport_id: int
-    score: Optional[UserWorkoutScore] = None
+    score: UserWorkoutScore | None = None
 
     @classmethod
-    def _dict_parse(cls, data: Dict):
+    def _dict_parse(cls, data: dict) -> dict[str, Any]:
         if "score" in data and data["score"] is not None:
             score_dict = data["score"]
-            if (
-                "zone_duration" in score_dict
-                and score_dict["zone_duration"] is not None
-            ):
-                score_dict["zone_duration"] = UserWorkoutZoneDuration(
-                    **score_dict["zone_duration"]
-                )
+            if "zone_duration" in score_dict and score_dict["zone_duration"] is not None:
+                score_dict["zone_duration"] = UserWorkoutZoneDuration(**score_dict["zone_duration"])
             data["score"] = UserWorkoutScore(**score_dict)
 
         return data

@@ -3,18 +3,19 @@
 Copyright (c) 2022 Felix Geilert
 """
 
-from datetime import datetime, timedelta
 import json
 import logging
 import math
 import os
-from pathlib import Path
-from typing import Tuple, Dict
 import webbrowser
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
 
-import streamlit as st
 import plotly.express as px
-from whoopy import WhoopClient, SPORT_IDS
+import streamlit as st
+
+from whoopy import SPORT_IDS, WhoopClient
 
 # Page wide Config
 st.set_page_config(page_title="Whoop", page_icon="🏃‍♂️")
@@ -34,11 +35,11 @@ config_mod_date = os.path.getmtime(CONFIG_FILE)
 
 
 # read the config (make sure this is cached based on last modification date)
-@st.cache()
-def load_config(config_mod_date):
+@st.cache_data
+def load_config(config_mod_date: float) -> Any:  # noqa: ARG001
     # load config and return
-    config = json.load(open(CONFIG_FILE, "r"))
-    return config
+    with open(CONFIG_FILE) as f:
+        return json.load(f)
 
 
 # retrieve the config
@@ -47,7 +48,7 @@ config = load_config(config_mod_date)
 
 # Sidebar
 st.sidebar.header("Whoop API")
-with open(BASE_DIR / "readme.md", "r") as f:
+with open(BASE_DIR / "readme.md") as f:
     st.sidebar.markdown(f.read())
 
 # Main
@@ -58,13 +59,11 @@ client: WhoopClient = None
 
 
 # generate the url
-@st.cache()
-def login_url(config: Dict) -> Tuple[str, str]:
+@st.cache_data
+def login_url(config: dict) -> tuple[str, str]:
     """Generates the grant url for the whoop api."""
     # retrieve url
-    url, state = WhoopClient.auth_url(
-        config["client_id"], config["client_secret"], config["redirect_uri"]
-    )
+    url, state = WhoopClient.auth_url(config["client_id"], config["client_secret"], config["redirect_uri"])
     webbrowser.open(url)
 
     return url, state
@@ -114,9 +113,7 @@ with login_container.container():
         # try to load from file, otherwise update
         try:
             with st.spinner(text="loading token..."):
-                client = WhoopClient.from_token(
-                    TOKEN_FILE, config["client_id"], config["client_secret"]
-                )
+                client = WhoopClient.from_token(TOKEN_FILE, config["client_id"], config["client_secret"])
         except Exception as e:
             # provide warning to log
             logging.warning(f"Failed to load token: {e}")
@@ -151,9 +148,7 @@ login_container.empty()
 baseline_days = st.slider("Days to load", 1, 180, 30, 1)
 baseline_days = int(baseline_days)
 # get datetime rounded to 10 min
-today = datetime.now().replace(
-    second=0, microsecond=0, minute=math.floor(datetime.now().minute / 10) * 10
-)
+today = datetime.now().replace(second=0, microsecond=0, minute=math.floor(datetime.now().minute / 10) * 10)
 
 # display tabs
 tab_overview, tab_workout, tab_sleep, tab_report, tab_raw = st.tabs(
@@ -161,22 +156,20 @@ tab_overview, tab_workout, tab_sleep, tab_report, tab_raw = st.tabs(
 )
 
 
-@st.cache()
-def load_metrics(baseline_days: int, today: datetime) -> Dict:
+@st.cache_data
+def load_metrics(baseline_days: int, today: datetime) -> tuple[Any, Any, Any, Any]:
     start = today - timedelta(days=baseline_days + 1)
     rec, _ = client.recovery.collection_df(start=start, end=today, get_all_pages=True)
     sleep, _ = client.sleep.collection_df(start=start, end=today, get_all_pages=True)
     cycle, _ = client.cycle.collection_df(start=start, end=today, get_all_pages=True)
-    workout, _ = client.workout.collection_df(
-        start=start, end=today, get_all_pages=True
-    )
+    workout, _ = client.workout.collection_df(start=start, end=today, get_all_pages=True)
 
     return rec, sleep, cycle, workout
 
 
 with st.spinner(text="loading metrics..."):
     rec, sleep, cycle, workout = load_metrics(baseline_days, today)
-    sleep_nonap = sleep[sleep["nap"] == False]
+    sleep_nonap = sleep[~sleep["nap"]]
 
 
 with tab_overview:
@@ -233,9 +226,7 @@ with tab_workout:
 with tab_sleep:
     sleep_nonap_gp = sleep_nonap.copy()
     sleep_nonap_gp["date"] = sleep_nonap_gp["end"].dt.date
-    sleep_group = sleep_nonap_gp.groupby("date")[
-        "score.sleep_efficiency_percentage"
-    ].mean()
+    sleep_group = sleep_nonap_gp.groupby("date")["score.sleep_efficiency_percentage"].mean()
 
     # display
     st.header("Sleep Efficiency")
@@ -272,7 +263,7 @@ with tab_report:
             y0=row.mean_score,
             x1=row.end,
             y1=row.mean_score,
-            line=dict(color="black", width=2),
+            line={"color": "black", "width": 2},
         )
 
     st.plotly_chart(fig)

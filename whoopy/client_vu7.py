@@ -4,19 +4,20 @@ This contains information for the unofficial version 7 of the Whoop API.
 
 Copyright (C) 2022 Felix Geilert
 """
-import json
-from typing import Dict, Union
 
-import requests
 import configparser
+import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
+from typing import Any
 
-from dateutil import parser
-import pandas as pd
 import numpy as np
+import pandas as pd
+import requests
+from dateutil import parser
 from time_helper import create_intervals, localize_datetime
 
+from .constants import HTTP_OK, HTTP_UNAUTHORIZED
 
 # define default whoop date format
 DATE_FORMAT = "%Y-%m-%d"
@@ -33,7 +34,7 @@ class AuthenticationError(Exception):
     pass
 
 
-def whoop_time_str(dt: Union[datetime, str]):
+def whoop_time_str(dt: datetime | str) -> str:
     """Converts a datetime object into a whoop timestring"""
     # convert to utc
     dt_utc = localize_datetime(dt, "Etc/UTC")
@@ -53,11 +54,11 @@ class WhoopClient:
 
     def __init__(
         self,
-        auth_token=None,
-        whoop_id=None,
-        refresh_token=None,
-        current_datetime=datetime.utcnow(),
-    ):
+        auth_token: str | None = None,
+        whoop_id: str | None = None,
+        refresh_token: str | None = None,
+        current_datetime: datetime = datetime.now(timezone.utc),
+    ) -> None:
         # create some general params
         self.auth_token = auth_token
         self.refresh_token = refresh_token
@@ -72,7 +73,7 @@ class WhoopClient:
         if self.auth_token and not self.start_datetime:
             self.pull_userinfo()
 
-    def _create_url(self, postfix="", auth=False, user=True):
+    def _create_url(self, postfix: str = "", auth: bool = False, user: bool = True) -> str:
         """Generates the URL of the whoop endpoints"""
         base_url = API_URL
 
@@ -89,7 +90,7 @@ class WhoopClient:
         # generate url
         return f"{base_url}/{postfix}"
 
-    def pull_api(self, url, params=None, df=False):
+    def pull_api(self, url: str, params: dict[str, Any] | None = None, df: bool = False) -> Any:
         """Generalized function to retrieve data from the API.
 
         Args:
@@ -106,7 +107,7 @@ class WhoopClient:
         pull = requests.get(url, params=params, headers=headers)
 
         # retrieve json data from the API
-        if pull.status_code == 200 and len(pull.content) > 1:
+        if pull.status_code == HTTP_OK and len(pull.content) > 1:
             if df:
                 d = pd.json_normalize(pull.json())
 
@@ -118,23 +119,17 @@ class WhoopClient:
 
                     # check for type
                     if d[col].dtype == "object":
-                        d[col] = d[col].apply(
-                            lambda x: json.loads(
-                                str(x).replace("'", '"').replace('u"', '"')
-                            )
-                        )
+                        d[col] = d[col].apply(lambda x: json.loads(str(x).replace("'", '"').replace('u"', '"')))
 
                 return d
-            else:
-                return pull.json()
-        elif pull.status_code == 401 and self.auth_refresh < 3:
-            raise AuthenticationError("Unable to authenticate wiht backend")
-        else:
-            raise IOError(
-                f"Unable to retrieve API response for url ({url}): {pull.status_code}",
-                pull,
-                params,
-            )
+            return pull.json()
+        if pull.status_code == HTTP_UNAUTHORIZED:
+            raise AuthenticationError("Unable to authenticate with backend")
+        raise OSError(
+            f"Unable to retrieve API response for url ({url}): {pull.status_code}",
+            pull,
+            params,
+        )
 
     def _parse_authentication(self, body):
         """Parses the authentication response"""
@@ -170,7 +165,7 @@ class WhoopClient:
         auth = requests.post(self._create_url(auth=True), json=headers)
 
         # check for errors
-        if auth.status_code != 200:
+        if auth.status_code != HTTP_OK:
             raise AuthenticationError(f"Unable to complete authentication: {auth.text}")
 
         # parse the data
@@ -194,7 +189,7 @@ class WhoopClient:
         auth = self.pull_api(self._create_url(auth=True), params=headers)
 
         # check for errors
-        if auth.status_code != 200:
+        if auth.status_code != HTTP_OK:
             raise AuthenticationError(f"Unable to complete authentication: {auth.text}")
 
         # parse the data
@@ -222,8 +217,7 @@ class WhoopClient:
         sleep = self.pull_api(self._create_url(f"sleeps/{sleep_id}"))
 
         # retrieve the data
-        main_df = pd.json_normalize(sleep)
-        return main_df
+        return pd.json_normalize(sleep)
 
     def pull_sleep_events(self, sleep_id):
         sleep = self.pull_api(self._create_url(f"sleeps/{sleep_id}"))
@@ -247,9 +241,7 @@ class WhoopClient:
                 elif isinstance(start, datetime):
                     start_date = start
                 else:
-                    raise ValueError(
-                        f"Start argument ({start}) is not a valid datetime ({type(start)})"
-                    )
+                    raise ValueError(f"Start argument ({start}) is not a valid datetime ({type(start)})")
                 start_date = start_date.replace(tzinfo=None, hour=0, minute=0, second=0)
             # otherwise use default data
             else:
@@ -260,17 +252,13 @@ class WhoopClient:
                 elif isinstance(end, datetime):
                     end_date = end
                 else:
-                    raise ValueError(
-                        f"End argument ({end}) is not a valid datetime ({type(end)})"
-                    )
+                    raise ValueError(f"End argument ({end}) is not a valid datetime ({type(end)})")
                 end_date = end_date.replace(tzinfo=None)
             else:
-                end_date = datetime.utcnow()
+                end_date = datetime.now(timezone.utc)
 
             # generate range
-            date_range = create_intervals(
-                start_date, end_date, interval=7, round_days=True
-            )
+            date_range = create_intervals(start_date, end_date, interval=7, round_days=True)
 
             # retrieve data accordingly
             for dates in date_range:
@@ -278,9 +266,7 @@ class WhoopClient:
                     "start": whoop_time_str(dates[0]),
                     "end": whoop_time_str(dates[1]),
                 }
-                json_data = self.pull_api(
-                    self._create_url("cycles"), params=cycle_params
-                )
+                json_data = self.pull_api(self._create_url("cycles"), params=cycle_params)
 
                 results.append(json_data)
         else:
@@ -323,9 +309,7 @@ class WhoopClient:
         for sleep_col in sleep_cols:
             if sleep_col in all_data.columns:
                 all_data["sleep." + sleep_col] = (
-                    all_data["sleep." + sleep_col]
-                    .astype(float)
-                    .apply(lambda x: np.nan if np.isnan(x) else x / 60000)
+                    all_data["sleep." + sleep_col].astype(float).apply(lambda x: np.nan if np.isnan(x) else x / 60000)
                 )
             else:
                 all_data["sleep." + sleep_col] = np.nan
@@ -335,16 +319,7 @@ class WhoopClient:
             lambda x: x[0]["qualityDuration"] / 60000
             if len(x) == 1
             else (
-                sum(
-                    [
-                        y["qualityDuration"]
-                        for y in x
-                        if y["qualityDuration"] is not None
-                    ]
-                )
-                / 60000
-                if len(x) > 1
-                else 0
+                sum([y["qualityDuration"] for y in x if y["qualityDuration"] is not None]) / 60000 if len(x) > 1 else 0
             )
         )
         all_data.drop(["sleep.naps"], axis=1, inplace=True)
@@ -361,38 +336,28 @@ class WhoopClient:
         self.sport_dict = self.sport_dict
         return sport_dict
 
-    def _apply_zone(self, item: Dict[str, float], zone: int):
-        if item is None or zone not in item:
+    def _apply_zone(self, item: dict[str, float], zone: int) -> float | None:
+        if item is None or str(zone) not in item:
             return None
-        return item[zone] / 60000.0
+        return item[str(zone)] / 60000.0
 
-    def get_activities(
-        self, all_data=None, update_sport_dict=False, start=None, end=None
-    ):
+    def get_activities(self, all_data=None, update_sport_dict=False, start=None, end=None):
         """
         Activity data is pulled through the get_keydata functions so if the data pull is present, this function
         just transforms the activity column into a dataframe of activities, where each activity is a row.
         If it has not been pulled, this function runs the key data function then returns the activity dataframe
         """
         # pull data from all activities that have been logged so far
-        if self.sport_dict and update_sport_dict is False:
-            sport_dict = self.sport_dict
-        else:
-            sport_dict = self.get_sports()
+        sport_dict = self.sport_dict if self.sport_dict and update_sport_dict is False else self.get_sports()
 
         # make sure user is logged in
         if self.start_datetime:
             # check if existing data is used
-            if all_data is not None:
-                data = all_data
-            else:
-                data = self.get_keydata(start=start, end=end)
+            data = all_data if all_data is not None else self.get_keydata(start=start, end=end)
 
             # ensure data has the right format
             if data["strain.workouts"].dtype == "object":
-                data["strain.workouts"] = data["strain.workouts"].apply(
-                    lambda x: eval(str(x))
-                )
+                data["strain.workouts"] = data["strain.workouts"].apply(lambda x: eval(str(x)))
 
             # retrieve the data
             data = data[data["strain.workouts"].apply(len) > 0]
@@ -407,18 +372,15 @@ class WhoopClient:
                 return None
 
             # update the data
-            act_data[["during.upper", "during.lower"]] = act_data[
-                ["during.upper", "during.lower"]
-            ].apply(pd.to_datetime)
+            act_data[["during.upper", "during.lower"]] = act_data[["during.upper", "during.lower"]].apply(
+                pd.to_datetime
+            )
             act_data["total_minutes"] = act_data.apply(
-                lambda x: (x["during.upper"] - x["during.lower"]).total_seconds()
-                / 60.0,
+                lambda x: (x["during.upper"] - x["during.lower"]).total_seconds() / 60.0,
                 axis=1,
             )
-            for z in range(0, 6):
-                act_data["zone{}_minutes".format(z + 1)] = act_data["zones"].apply(
-                    lambda x: self._apply_zone(x, z)
-                )
+            for z in range(6):
+                act_data[f"zone{z + 1}_minutes"] = act_data["zones"].apply(lambda x, zone=z: self._apply_zone(x, zone))
             act_data["sport_name"] = act_data.sportId.apply(lambda x: sport_dict[x])
 
             act_data["day"] = act_data["during.lower"].dt.strftime(DATE_FORMAT)
@@ -426,20 +388,16 @@ class WhoopClient:
             act_data.drop_duplicates(inplace=True)
             self.all_activities = act_data
             return act_data
-        else:
-            raise RuntimeError("Please run the authorization function first")
+        raise RuntimeError("Please run the authorization function first")
 
-    def get_sleep(self, all_data=None, start=None, end=None):
+    def get_sleep(self, all_data=None, start=None, end=None):  # noqa: ARG002
         """
         This function returns all sleep metrics in a data frame, for the duration of user's WHOOP membership.
         Each row in the data frame represents one night of sleep
         """
         if self.auth_token:
             # check if previous data can be used
-            if all_data is not None:
-                data = all_data
-            else:
-                data = self.get_keydata(start=None, end=None)
+            data = all_data if all_data is not None else self.get_keydata(start=None, end=None)
 
             # getting all the sleep ids
             sleep_ids = data["sleep.id"].values.tolist()
@@ -474,11 +432,7 @@ class WhoopClient:
 
             for col in sleep_update:
                 if col in all_sleep.columns:
-                    all_sleep[col] = (
-                        all_sleep[col]
-                        .astype(float)
-                        .apply(lambda x: np.nan if np.isnan(x) else x / 60000)
-                    )
+                    all_sleep[col] = all_sleep[col].astype(float).apply(lambda x: np.nan if np.isnan(x) else x / 60000)
                 else:
                     all_data[col] = np.nan
 
@@ -486,10 +440,9 @@ class WhoopClient:
                 if col in all_sleep:
                     all_sleep.drop([col], axis=1, inplace=True)
             return all_sleep
-        else:
-            raise RuntimeError("Please run the authorization function first")
+        raise RuntimeError("Please run the authorization function first")
 
-    def get_sleep_events_all(self, all_data=None, all_sleep=None, start=None, end=None):
+    def get_sleep_events_all(self, all_data=None, all_sleep=None, start=None, end=None):  # noqa: ARG002
         """
         This function returns all sleep events in a data frame, for the duration of user's WHOOP membership.
         Each row in the data frame represents an individual sleep event within an individual night of sleep.
@@ -498,10 +451,7 @@ class WhoopClient:
         """
         if self.auth_token:
             # check for previous data
-            if all_data is not None:
-                data = all_data
-            else:
-                data = self.get_keydata(start=None, end=None)
+            data = all_data if all_data is not None else self.get_keydata(start=None, end=None)
 
             # getting all the sleep ids
             if all_sleep is not None:
@@ -515,36 +465,28 @@ class WhoopClient:
                             ],
                             axis=1,
                         )
-                        for events, sleep in zip(
-                            sleep_events["events"], sleep_events["activityId"]
-                        )
+                        for events, sleep in zip(sleep_events["events"], sleep_events["activityId"], strict=False)
                     ]
                 )
             else:
                 sleep_ids = data["sleep.id"].values.tolist()
-                sleep_list = [int(x) for x in sleep_ids if pd.isna(x) == False]
+                sleep_list = [int(x) for x in sleep_ids if pd.isna(x) is False]
                 all_sleep_events = pd.DataFrame()
                 for s in sleep_list:
                     events = self.pull_sleep_events(s)
                     all_sleep_events = pd.concat([all_sleep_events, events])
 
             # Cleaning sleep events data
-            all_sleep_events["during.lower"] = pd.to_datetime(
-                all_sleep_events["during.lower"]
-            )
-            all_sleep_events["during.upper"] = pd.to_datetime(
-                all_sleep_events["during.upper"]
-            )
+            all_sleep_events["during.lower"] = pd.to_datetime(all_sleep_events["during.lower"])
+            all_sleep_events["during.upper"] = pd.to_datetime(all_sleep_events["during.upper"])
             all_sleep_events.drop(["during.bounds"], axis=1, inplace=True)
             all_sleep_events["total_minutes"] = all_sleep_events.apply(
-                lambda x: (x["during.upper"] - x["during.lower"]).total_seconds()
-                / 60.0,
+                lambda x: (x["during.upper"] - x["during.lower"]).total_seconds() / 60.0,
                 axis=1,
             )
 
             return all_sleep_events
-        else:
-            raise RuntimeError("Please run the authorization function first")
+        raise RuntimeError("Please run the authorization function first")
 
     def get_hr(self, df=False, start=None, end=None):
         """
@@ -571,14 +513,10 @@ class WhoopClient:
                     "step": 6,
                 }
                 try:
-                    hr_vals = self.pull_api(
-                        self._create_url("metrics/heart_rate"), params=params
-                    )["values"]
-                except IOError:
+                    hr_vals = self.pull_api(self._create_url("metrics/heart_rate"), params=params)["values"]
+                except OSError:
                     print(f"Unable to pull data from {dates[0]} to {dates[1]}")
-                    logging.warning(
-                        f"Unable to pull data from {dates[0]} to {dates[1]}"
-                    )
+                    logging.warning(f"Unable to pull data from {dates[0]} to {dates[1]}")
                     continue
                 hr_values = [
                     [
@@ -598,9 +536,6 @@ class WhoopClient:
             if df:
                 hr_df = pd.DataFrame(hr_list)
                 hr_df.columns = ["date", "time", "hr"]
-                hr_df = hr_df.reset_index()[["date", "time", "hr"]]
-                return hr_df
-            else:
-                return hr_list
-        else:
-            raise RuntimeError("Please run the authorization function first")
+                return hr_df.reset_index()[["date", "time", "hr"]]
+            return hr_list
+        raise RuntimeError("Please run the authorization function first")
