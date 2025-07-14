@@ -2512,6 +2512,7 @@ test = [
 
 [package.dev-dependencies]
 dev = [
+    { name = "pre-commit" },
     { name = "types-python-dateutil" },
     { name = "types-requests" },
 ]
@@ -2546,6 +2547,7 @@ provides-extras = ["dev", "explorer", "test"]
 
 [package.metadata.requires-dev]
 dev = [
+    { name = "pre-commit", specifier = ">=4.2.0" },
     { name = "types-python-dateutil", specifier = ">=2.9.0.20250708" },
     { name = "types-requests", specifier = ">=2.32.4.20250611" },
 ]

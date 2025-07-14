@@ -27,7 +27,18 @@ T = TypeVar("T")
 
 
 def run_async(coro: Any) -> Any:
-    """Run an async coroutine in a sync context."""
+    """
+    Run an async coroutine in a sync context.
+
+    Args:
+        coro: The coroutine to run
+
+    Returns:
+        The result of the coroutine
+
+    Raises:
+        RuntimeError: If already in an async context
+    """
     import contextlib
 
     loop = None
@@ -42,7 +53,15 @@ def run_async(coro: Any) -> Any:
 
 
 def async_to_sync(method: Callable[..., Any]) -> Callable[..., Any]:
-    """Decorator to convert async methods to sync."""
+    """
+    Decorator to convert async methods to sync.
+
+    Args:
+        method: The async method to wrap
+
+    Returns:
+        A synchronous wrapper function
+    """
 
     @functools.wraps(method)
     def wrapper(*args: Any, **kwargs: Any) -> Any:
@@ -56,6 +75,12 @@ class SyncUserHandler:
     """Synchronous wrapper for UserHandler."""
 
     def __init__(self, async_handler: "handlers_v2.UserHandler") -> None:
+        """
+        Initialize SyncUserHandler.
+
+        Args:
+            async_handler: The async UserHandler to wrap
+        """
         self._handler = async_handler
 
     @async_to_sync
@@ -82,7 +107,18 @@ class SyncCollectionMixin:
         end: str | datetime | None = None,
         next_token: str | None = None,
     ) -> Any:
-        """Get a single page of results."""
+        """
+        Get a single page of results.
+
+        Args:
+            limit: Maximum number of items per page (default: 10)
+            start: Start datetime for filtering results
+            end: End datetime for filtering results
+            next_token: Token for pagination to get next page
+
+        Returns:
+            Paginated response containing items and next_token
+        """
         return await self._handler.get_page(limit=limit, start=start, end=end, next_token=next_token)
 
     @async_to_sync
@@ -93,13 +129,36 @@ class SyncCollectionMixin:
         limit_per_page: int = 25,
         max_records: int | None = None,
     ) -> list[Any]:
-        """Get all items across all pages."""
+        """
+        Get all items across all pages.
+
+        Args:
+            start: Start datetime for filtering results
+            end: End datetime for filtering results
+            limit_per_page: Items per page (default: 25)
+            max_records: Maximum total records to fetch (None for all)
+
+        Returns:
+            List of all items across all pages
+        """
         return await self._handler.get_all(start=start, end=end, limit_per_page=limit_per_page, max_records=max_records)
 
     def iterate(
         self, start: str | datetime | None = None, end: str | datetime | None = None, limit_per_page: int = 25
     ) -> list[Any]:
-        """Iterate over all items across all pages."""
+        """
+        Iterate over all items across all pages.
+
+        Note: In sync mode, this returns all items as a list rather than yielding.
+
+        Args:
+            start: Start datetime for filtering results
+            end: End datetime for filtering results
+            limit_per_page: Items per page (default: 25)
+
+        Returns:
+            List of all items
+        """
 
         async def _iterate() -> list[Any]:
             items = []
@@ -119,7 +178,18 @@ class SyncCollectionMixin:
         max_records: int | None = None,
     ) -> pd.DataFrame:
         # type: ignore[misc]
-        """Get all items as a pandas DataFrame."""
+        """
+        Get all items as a pandas DataFrame.
+
+        Args:
+            start: Start datetime for filtering results
+            end: End datetime for filtering results
+            limit_per_page: Items per page (default: 25)
+            max_records: Maximum total records to fetch (None for all)
+
+        Returns:
+            DataFrame containing all items with flattened structure
+        """
         return await self._handler.get_dataframe(
             start=start, end=end, limit_per_page=limit_per_page, max_records=max_records
         )
@@ -129,16 +199,44 @@ class SyncCycleHandler(SyncCollectionMixin):
     """Synchronous wrapper for CycleHandler."""
 
     def __init__(self, async_handler: Any) -> None:
+        """
+        Initialize SyncCycleHandler.
+
+        Args:
+            async_handler: The async CycleHandler to wrap
+        """
         self._handler = async_handler
 
     @async_to_sync
     async def get_by_id(self, cycle_id: int) -> models.Cycle:
-        """Get a cycle by ID."""
+        """
+        Get a cycle by ID.
+
+        Args:
+            cycle_id: The unique identifier of the cycle
+
+        Returns:
+            The requested Cycle object
+
+        Raises:
+            ResourceNotFoundError: If cycle not found
+        """
         return await self._handler.get_by_id(cycle_id)
 
     @async_to_sync
     async def get_sleep(self, cycle_id: int) -> models.Sleep:
-        """Get the sleep for a specific cycle."""
+        """
+        Get the sleep for a specific cycle.
+
+        Args:
+            cycle_id: The unique identifier of the cycle
+
+        Returns:
+            Sleep data associated with the cycle
+
+        Raises:
+            ResourceNotFoundError: If cycle or sleep not found
+        """
         return await self._handler.get_sleep(cycle_id)
 
 
@@ -146,11 +244,28 @@ class SyncSleepHandler(SyncCollectionMixin):
     """Synchronous wrapper for SleepHandler."""
 
     def __init__(self, async_handler: Any) -> None:
+        """
+        Initialize SyncSleepHandler.
+
+        Args:
+            async_handler: The async SleepHandler to wrap
+        """
         self._handler = async_handler
 
     @async_to_sync
     async def get_by_id(self, sleep_id: str | UUID) -> models.Sleep:
-        """Get a sleep activity by ID."""
+        """
+        Get a sleep activity by ID.
+
+        Args:
+            sleep_id: The UUID of the sleep activity (as string or UUID object)
+
+        Returns:
+            The requested Sleep object
+
+        Raises:
+            ResourceNotFoundError: If sleep not found
+        """
         return await self._handler.get_by_id(sleep_id)
 
 
@@ -158,11 +273,28 @@ class SyncRecoveryHandler(SyncCollectionMixin):
     """Synchronous wrapper for RecoveryHandler."""
 
     def __init__(self, async_handler: Any) -> None:
+        """
+        Initialize SyncRecoveryHandler.
+
+        Args:
+            async_handler: The async RecoveryHandler to wrap
+        """
         self._handler = async_handler
 
     @async_to_sync
     async def get_for_cycle(self, cycle_id: int) -> models.Recovery:
-        """Get the recovery for a specific cycle."""
+        """
+        Get the recovery for a specific cycle.
+
+        Args:
+            cycle_id: The unique identifier of the cycle
+
+        Returns:
+            Recovery data for the specified cycle
+
+        Raises:
+            ResourceNotFoundError: If recovery not found for cycle
+        """
         return await self._handler.get_for_cycle(cycle_id)
 
 
@@ -170,11 +302,28 @@ class SyncWorkoutHandler(SyncCollectionMixin):
     """Synchronous wrapper for WorkoutHandler."""
 
     def __init__(self, async_handler: Any) -> None:
+        """
+        Initialize SyncWorkoutHandler.
+
+        Args:
+            async_handler: The async WorkoutHandler to wrap
+        """
         self._handler = async_handler
 
     @async_to_sync
     async def get_by_id(self, workout_id: str | UUID) -> models.WorkoutV2:
-        """Get a workout by ID."""
+        """
+        Get a workout by ID.
+
+        Args:
+            workout_id: The UUID of the workout (as string or UUID object)
+
+        Returns:
+            The requested WorkoutV2 object
+
+        Raises:
+            ResourceNotFoundError: If workout not found
+        """
         return await self._handler.get_by_id(workout_id)
 
     @async_to_sync
@@ -186,7 +335,19 @@ class SyncWorkoutHandler(SyncCollectionMixin):
         limit_per_page: int = 25,
         max_records: int | None = None,
     ) -> list[models.WorkoutV2]:
-        """Get all workouts for a specific sport."""
+        """
+        Get all workouts for a specific sport.
+
+        Args:
+            sport_name: Name of the sport to filter by
+            start: Start datetime for filtering results
+            end: End datetime for filtering results
+            limit_per_page: Items per page (default: 25)
+            max_records: Maximum total records to fetch (None for all)
+
+        Returns:
+            List of workouts matching the sport name
+        """
         return await self._handler.get_by_sport(
             sport_name=sport_name, start=start, end=end, limit_per_page=limit_per_page, max_records=max_records
         )
@@ -293,7 +454,15 @@ class WhoopClientV2Sync:
         return self._async_client.token_info
 
     def save_token(self, path: str = ".whoop_credentials.json") -> None:
-        """Save current token to file."""
+        """
+        Save current token to file.
+
+        Args:
+            path: Path to save the token file (default: ".whoop_credentials.json")
+
+        Raises:
+            ValueError: If no token to save
+        """
         self._async_client.save_token(path)
 
     @async_to_sync
@@ -353,7 +522,20 @@ class WhoopClientV2Sync:
         client_id: str | None = None,
         client_secret: str | None = None,
     ) -> "WhoopClientV2Sync":
-        """Create client from existing token."""
+        """
+        Create client from existing token.
+
+        Args:
+            access_token: OAuth2 access token
+            expires_in: Token validity duration in seconds (default: 3600)
+            refresh_token: OAuth2 refresh token for token renewal
+            scopes: List of OAuth2 scopes granted to the token
+            client_id: OAuth2 client ID (required for token refresh)
+            client_secret: OAuth2 client secret (required for token refresh)
+
+        Returns:
+            Configured WhoopClientV2Sync instance
+        """
         client = WhoopClientV2.from_token(
             access_token=access_token,
             expires_in=expires_in,
@@ -369,7 +551,19 @@ class WhoopClientV2Sync:
     def from_config(
         cls, config_path: str = "config.json", token_path: str = ".whoop_credentials.json"
     ) -> "WhoopClientV2Sync":
-        """Create client from configuration files."""
+        """
+        Create client from configuration files.
+
+        Args:
+            config_path: Path to JSON config file containing client credentials
+            token_path: Path to save/load token file
+
+        Returns:
+            Configured WhoopClientV2Sync instance
+
+        Raises:
+            ConfigurationError: If config file not found or invalid
+        """
         client = WhoopClientV2.from_config(config_path=config_path, token_path=token_path)
 
         return cls(

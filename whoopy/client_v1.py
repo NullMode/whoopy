@@ -107,12 +107,17 @@ class WhoopClient:
 
     @classmethod
     def from_token(cls, path: str, client_id: str, client_secret: str, overwrite_token: bool = True) -> Self:
-        """Loads a token from a file.
+        """
+        Loads a token from a file and creates a WhoopClient instance.
 
         Args:
-            path (str): The path to the file (e.g. ".tokens/token.json").
-            client_id (str): The client ID.
-            client_secret (str): The client secret.
+            path (str): The path to the token file (e.g. ".tokens/token.json").
+            client_id (str): The OAuth2 client ID.
+            client_secret (str): The OAuth2 client secret.
+            overwrite_token (bool): Whether to save the refreshed token back to file (default: True).
+
+        Returns:
+            WhoopClient: Authenticated client instance with refreshed token.
         """
         with open(path) as f:
             token = json.load(f)
@@ -142,7 +147,22 @@ class WhoopClient:
         state: str | None = None,
         scopes: list[str] | None = None,
     ) -> tuple[str, str]:
-        """Generates authorization url for the Whoop API."""
+        """
+        Generates authorization URL for the Whoop OAuth2 flow.
+
+        Args:
+            client_id (str): The OAuth2 client ID.
+            client_secret (str): The OAuth2 client secret.
+            redirect_uri (str): The redirect URI registered with Whoop.
+            state (str | None): Optional state parameter for CSRF protection (auto-generated if None).
+            scopes (list[str] | None): OAuth2 scopes to request (uses all available if None).
+
+        Returns:
+            tuple[str, str]: A tuple of (authorization_url, state_parameter).
+
+        Raises:
+            ValueError: If state is provided but less than 8 characters.
+        """
         # check state
         if not state:
             state = str(uuid.uuid4())
@@ -194,7 +214,25 @@ class WhoopClient:
         redirect_url: str = "https://jwt.ms/",
         scopes: list[str] | None = None,
     ) -> Self:
-        """Authorize the client with the given code."""
+        """
+        Authorize the client with the given authorization code.
+
+        Exchanges an authorization code for access and refresh tokens.
+
+        Args:
+            code (str): Authorization code from OAuth2 callback.
+            client_id (str): The OAuth2 client ID.
+            client_secret (str): The OAuth2 client secret.
+            redirect_url (str): The redirect URI used in authorization (default: "https://jwt.ms/").
+            scopes (list[str] | None): Expected scopes to validate (raises error if not granted).
+
+        Returns:
+            WhoopClient: Authenticated client instance.
+
+        Raises:
+            RuntimeError: If authorization fails.
+            ValueError: If requested scopes were not granted.
+        """
         # generate request using the code
         payload = {
             "client_id": client_id,
@@ -252,7 +290,15 @@ class WhoopClient:
         # complete
 
     def refresh(self) -> None:
-        """Refreshes the token provided."""
+        """
+        Refreshes the access token using the refresh token.
+
+        Updates the client's token information with new access token and expiry.
+
+        Raises:
+            ValueError: If no refresh token or client credentials are available.
+            RuntimeError: If token refresh fails.
+        """
         # verify client is setup correctly
         if self.refresh_token is None:
             raise ValueError("No refresh token provided")
@@ -280,11 +326,19 @@ class WhoopClient:
 
     @classmethod
     def from_token_or_flow(cls, secret_json: str, token_path: str, scopes: list[str] | None = None) -> Self:
-        """Creates a new WhoopClient from a token or by using the authorization flow.
+        """
+        Creates a new WhoopClient from a token or by using the authorization flow.
+
+        If a valid token exists at token_path, loads and refreshes it. Otherwise,
+        initiates the OAuth2 authorization flow.
 
         Args:
-            secret_json (str): The path to the secret JSON file.
-            token_path (str): The path to the token file.
+            secret_json (str): Path to JSON file containing client_id, client_secret, and redirect_uri.
+            token_path (str): Path to save/load the token file.
+            scopes (list[str] | None): OAuth2 scopes to request (uses all available if None).
+
+        Returns:
+            WhoopClient: Authenticated client instance.
         """
         # load the secret
         with open(secret_json) as f:

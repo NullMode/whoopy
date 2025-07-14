@@ -28,7 +28,17 @@ class RetryConfig:
 
 
 def calculate_backoff_delay(attempt: int, config: RetryConfig, retry_after: int | None = None) -> float:
-    """Calculate the delay before the next retry attempt."""
+    """
+    Calculate the delay before the next retry attempt.
+
+    Args:
+        attempt: The attempt number (0-based)
+        config: Retry configuration parameters
+        retry_after: Server-provided retry delay in seconds (overrides backoff)
+
+    Returns:
+        Delay in seconds before next retry
+    """
     if retry_after is not None:
         # If server provides retry-after, use it (with small jitter)
         delay = float(retry_after)
@@ -49,7 +59,15 @@ def calculate_backoff_delay(attempt: int, config: RetryConfig, retry_after: int 
 def retry_with_backoff(
     config: RetryConfig | None = None,
 ) -> Callable[[Callable[..., Awaitable[T]]], Callable[..., Awaitable[T]]]:
-    """Decorator for adding retry logic to async functions."""
+    """
+    Decorator for adding retry logic to async functions.
+
+    Args:
+        config: Retry configuration (uses defaults if None)
+
+    Returns:
+        Decorator function that adds retry logic
+    """
     if config is None:
         config = RetryConfig()
 
@@ -97,12 +115,33 @@ class RetryableSession:
         retry_config: RetryConfig | None = None,
         check_response_func: Callable[[Any], Awaitable[None]] | None = None,
     ) -> None:
+        """
+        Initialize RetryableSession.
+
+        Args:
+            session: The underlying session (e.g., aiohttp.ClientSession)
+            retry_config: Configuration for retry behavior (uses defaults if None)
+            check_response_func: Optional function to check response validity
+        """
         self.session = session
         self.retry_config = retry_config or RetryConfig()
         self.check_response_func = check_response_func
 
     async def request(self, method: str, url: str, **kwargs: Any) -> Any:
-        """Make a request with automatic retry logic."""
+        """
+        Make a request with automatic retry logic.
+
+        Args:
+            method: HTTP method (GET, POST, etc.)
+            url: URL to request
+            **kwargs: Additional arguments passed to the underlying session request
+
+        Returns:
+            Response from the underlying session
+
+        Raises:
+            Various exceptions based on retry configuration
+        """
 
         @retry_with_backoff(self.retry_config)
         async def _request() -> Any:
@@ -114,17 +153,53 @@ class RetryableSession:
         return await _request()
 
     async def get(self, url: str, **kwargs: Any) -> Any:
-        """GET request with retry."""
+        """
+        GET request with retry.
+
+        Args:
+            url: URL to request
+            **kwargs: Additional arguments passed to the request
+
+        Returns:
+            Response from the underlying session
+        """
         return await self.request("GET", url, **kwargs)
 
     async def post(self, url: str, **kwargs: Any) -> Any:
-        """POST request with retry."""
+        """
+        POST request with retry.
+
+        Args:
+            url: URL to request
+            **kwargs: Additional arguments passed to the request
+
+        Returns:
+            Response from the underlying session
+        """
         return await self.request("POST", url, **kwargs)
 
     async def put(self, url: str, **kwargs: Any) -> Any:
-        """PUT request with retry."""
+        """
+        PUT request with retry.
+
+        Args:
+            url: URL to request
+            **kwargs: Additional arguments passed to the request
+
+        Returns:
+            Response from the underlying session
+        """
         return await self.request("PUT", url, **kwargs)
 
     async def delete(self, url: str, **kwargs: Any) -> Any:
-        """DELETE request with retry."""
+        """
+        DELETE request with retry.
+
+        Args:
+            url: URL to request
+            **kwargs: Additional arguments passed to the request
+
+        Returns:
+            Response from the underlying session
+        """
         return await self.request("DELETE", url, **kwargs)

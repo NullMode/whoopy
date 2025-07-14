@@ -40,7 +40,17 @@ class PaginationHelper(Generic[T]):
         self.model_class = model_class
 
     async def get_page(self, limit: int = 10, next_token: str | None = None, **kwargs: Any) -> PaginatedResponse[T]:
-        """Fetch a single page of results."""
+        """
+        Fetch a single page of results.
+
+        Args:
+            limit: Maximum number of items per page (default: 10, max: 25)
+            next_token: Token from previous page for pagination
+            **kwargs: Additional parameters passed to fetch_page (e.g., start, end)
+
+        Returns:
+            PaginatedResponse containing items and optional next_token
+        """
         return await self.fetch_page(limit=limit, next_token=next_token, **kwargs)
 
     async def get_all(self, limit_per_page: int = 25, max_records: int | None = None, **kwargs: Any) -> list[T]:

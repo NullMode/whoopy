@@ -223,7 +223,16 @@ class WhoopClientV2:
         )
 
     async def refresh_token(self) -> None:
-        """Refresh the access token."""
+        """
+        Refresh the access token using the refresh token.
+
+        This method uses the stored refresh token to obtain a new access token
+        from the Whoop OAuth2 endpoint. The token info is automatically updated.
+
+        Raises:
+            ConfigurationError: If OAuth helper not configured (missing client_id/secret)
+            RefreshTokenError: If refresh fails or no refresh token available
+        """
         if not self._oauth_helper:
             raise ConfigurationError("Cannot refresh token without client_id and client_secret")
 
@@ -401,7 +410,17 @@ class WhoopClientV2:
         return cls(token_info=token_info, client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri)
 
     def save_token(self, path: str = ".whoop_credentials.json") -> None:
-        """Save current token to file."""
+        """
+        Save current token to file.
+
+        Saves the current OAuth2 token information to a JSON file for later use.
+
+        Args:
+            path: Path to save the token file (default: ".whoop_credentials.json")
+
+        Raises:
+            ValueError: If no token to save
+        """
         if not self.token_info:
             raise ValueError("No token to save")
 

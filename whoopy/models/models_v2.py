@@ -431,7 +431,19 @@ SPORT_IDS = {
 
 # Helper functions for DataFrame conversion
 def models_to_dataframe(models: list[BaseWhoopModel]) -> pd.DataFrame:
-    """Convert a list of Pydantic models to a pandas DataFrame."""
+    """
+    Convert a list of Pydantic models to a pandas DataFrame.
+
+    This function takes a list of Whoop data models and converts them to a
+    DataFrame with normalized/flattened structure. Datetime columns are
+    automatically converted to pandas datetime types.
+
+    Args:
+        models: List of BaseWhoopModel instances to convert
+
+    Returns:
+        DataFrame with flattened structure from the models, or empty DataFrame if no models
+    """
     if not models:
         return pd.DataFrame()
 

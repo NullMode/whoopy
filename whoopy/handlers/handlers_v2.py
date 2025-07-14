@@ -36,6 +36,12 @@ class CycleHandler(CombinedHandler[models.Cycle]):
     """Handler for cycle endpoints."""
 
     def __init__(self, client: WhoopClientV2):
+        """
+        Initialize CycleHandler.
+
+        Args:
+            client: WhoopClientV2 instance for making API requests
+        """
         super().__init__(
             client=client,
             resource_path="cycle",
@@ -70,6 +76,12 @@ class SleepHandler(CombinedHandler[models.Sleep]):
     """Handler for sleep endpoints."""
 
     def __init__(self, client: WhoopClientV2):
+        """
+        Initialize SleepHandler.
+
+        Args:
+            client: WhoopClientV2 instance for making API requests
+        """
         super().__init__(
             client=client,
             resource_path="activity/sleep",
@@ -99,6 +111,12 @@ class RecoveryHandler(CollectionHandler[models.Recovery]):
     """Handler for recovery endpoints."""
 
     def __init__(self, client: WhoopClientV2):
+        """
+        Initialize RecoveryHandler.
+
+        Args:
+            client: WhoopClientV2 instance for making API requests
+        """
         super().__init__(
             client=client,
             collection_path="activity/recovery",
@@ -132,6 +150,12 @@ class WorkoutHandler(CombinedHandler[models.WorkoutV2]):
     """Handler for workout endpoints."""
 
     def __init__(self, client: WhoopClientV2):
+        """
+        Initialize WorkoutHandler.
+
+        Args:
+            client: WhoopClientV2 instance for making API requests
+        """
         super().__init__(
             client=client,
             resource_path="activity/workout",
