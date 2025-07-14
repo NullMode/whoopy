@@ -134,3 +134,4 @@ config.json
 
 CLAUDE.md
 .claude
+.whoop_credentials.json

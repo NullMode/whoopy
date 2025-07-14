@@ -38,9 +38,18 @@ class TokenInfo:
         """Check if the token has expired."""
         if self.created_at is None:
             return True  # Consider expired if no creation time
+
+        current_time = datetime.now(timezone.utc)
         expiry_time = self.created_at + timedelta(seconds=self.expires_in)
+
         # Add 60 second buffer to account for clock skew
-        return datetime.now(timezone.utc) >= expiry_time - timedelta(seconds=60)
+        is_expired = current_time >= expiry_time - timedelta(seconds=60)
+
+        if is_expired:
+            time_since_expiry = current_time - expiry_time
+            print(f"Token expired {time_since_expiry.total_seconds():.0f} seconds ago")
+
+        return is_expired
 
     @property
     def expires_at(self) -> datetime:
@@ -49,6 +58,11 @@ class TokenInfo:
             # Should not happen due to __post_init__, but mypy doesn't know that
             return datetime.now(timezone.utc)
         return self.created_at + timedelta(seconds=self.expires_in)
+
+    @property
+    def time_until_expiry(self) -> timedelta:
+        """Get time remaining until token expires."""
+        return self.expires_at - datetime.now(timezone.utc)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for serialization."""

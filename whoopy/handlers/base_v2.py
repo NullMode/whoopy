@@ -54,6 +54,13 @@ class BaseHandler(ABC):  # noqa: B024
             return dt
 
         if isinstance(dt, datetime):
+            # Ensure datetime is timezone-aware
+            if dt.tzinfo is None:
+                # Assume UTC for naive datetimes
+                from datetime import timezone
+
+                dt = dt.replace(tzinfo=timezone.utc)
+
             # Convert to ISO format with Z suffix
             return dt.isoformat().replace("+00:00", "Z")
 

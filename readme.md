@@ -86,6 +86,9 @@ uv run python -m tools.example
 python -m tools.example
 ```
 
+Note: The redirect uri will not exist. You need to copy the entire url from your browser and
+paste it in the console. This will then handle the token exchange.
+
 ## Usage Examples
 
 ### Synchronous Usage (Recommended for Beginners)

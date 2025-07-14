@@ -9,6 +9,8 @@ Copyright (c) 2024 Felix Geilert
 
 import asyncio
 import functools
+import logging
+import threading
 from collections.abc import Callable
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypeVar
@@ -26,30 +28,47 @@ from .utils import RetryConfig, TokenInfo
 T = TypeVar("T")
 
 
-def run_async(coro: Any) -> Any:
-    """
-    Run an async coroutine in a sync context.
+class EventLoopThread:
+    """Thread with its own event loop for running async code."""
 
-    Args:
-        coro: The coroutine to run
+    def __init__(self) -> None:
+        self.loop: asyncio.AbstractEventLoop | None = None
+        self.thread: threading.Thread | None = None
+        self._started = threading.Event()
 
-    Returns:
-        The result of the coroutine
+    def start(self) -> None:
+        """Start the event loop thread."""
+        if self.thread is not None:
+            return
 
-    Raises:
-        RuntimeError: If already in an async context
-    """
-    import contextlib
+        def _run_loop() -> None:
+            self.loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(self.loop)
+            self._started.set()
+            self.loop.run_forever()
 
-    loop = None
-    with contextlib.suppress(RuntimeError):
-        loop = asyncio.get_running_loop()
+        self.thread = threading.Thread(target=_run_loop, daemon=True)
+        self.thread.start()
+        self._started.wait()  # Wait for loop to be ready
 
-    if loop is not None:
-        # We're already in an async context
-        raise RuntimeError("Cannot use sync wrapper from within an async context. Use WhoopClientV2 directly instead.")
+    def run_coroutine(self, coro: Any) -> Any:
+        """Run a coroutine in the event loop."""
+        if self.loop is None:
+            self.start()
 
-    return asyncio.run(coro)
+        if self.loop is None:
+            raise RuntimeError("Event loop not initialized")
+        future = asyncio.run_coroutine_threadsafe(coro, self.loop)
+        return future.result()
+
+    def stop(self) -> None:
+        """Stop the event loop and thread."""
+        if self.loop is not None:
+            self.loop.call_soon_threadsafe(self.loop.stop)
+        if self.thread is not None:
+            self.thread.join(timeout=1)
+            self.thread = None
+            self.loop = None
 
 
 def async_to_sync(method: Callable[..., Any]) -> Callable[..., Any]:
@@ -64,9 +83,13 @@ def async_to_sync(method: Callable[..., Any]) -> Callable[..., Any]:
     """
 
     @functools.wraps(method)
-    def wrapper(*args: Any, **kwargs: Any) -> Any:
-        coro = method(*args, **kwargs)
-        return run_async(coro)
+    def wrapper(self: Any, *args: Any, **kwargs: Any) -> Any:
+        # Ensure we have an event loop thread
+        if not hasattr(self, "_loop_thread") or self._loop_thread is None:
+            raise RuntimeError("Event loop thread not initialized")
+
+        coro = method(self, *args, **kwargs)
+        return self._loop_thread.run_coroutine(coro)
 
     return wrapper
 
@@ -74,14 +97,16 @@ def async_to_sync(method: Callable[..., Any]) -> Callable[..., Any]:
 class SyncUserHandler:
     """Synchronous wrapper for UserHandler."""
 
-    def __init__(self, async_handler: "handlers_v2.UserHandler") -> None:
+    def __init__(self, async_handler: "handlers_v2.UserHandler", loop_thread: EventLoopThread) -> None:
         """
         Initialize SyncUserHandler.
 
         Args:
             async_handler: The async UserHandler to wrap
+            loop_thread: Event loop thread for running async code
         """
         self._handler = async_handler
+        self._loop_thread = loop_thread
 
     @async_to_sync
     async def get_profile(self) -> models.UserBasicProfile:
@@ -98,6 +123,7 @@ class SyncCollectionMixin:
     """Mixin for synchronous collection operations."""
 
     _handler: Any  # Will be set by subclasses
+    _loop_thread: EventLoopThread  # Will be set by subclasses
 
     @async_to_sync
     async def get_page(
@@ -167,7 +193,7 @@ class SyncCollectionMixin:
             return items
 
         # Return all items as a list since we can't yield from sync
-        return run_async(_iterate())
+        return self._loop_thread.run_coroutine(_iterate())
 
     @async_to_sync
     async def get_dataframe(
@@ -198,14 +224,16 @@ class SyncCollectionMixin:
 class SyncCycleHandler(SyncCollectionMixin):
     """Synchronous wrapper for CycleHandler."""
 
-    def __init__(self, async_handler: Any) -> None:
+    def __init__(self, async_handler: Any, loop_thread: EventLoopThread) -> None:
         """
         Initialize SyncCycleHandler.
 
         Args:
             async_handler: The async CycleHandler to wrap
+            loop_thread: Event loop thread for running async code
         """
         self._handler = async_handler
+        self._loop_thread = loop_thread
 
     @async_to_sync
     async def get_by_id(self, cycle_id: int) -> models.Cycle:
@@ -243,14 +271,16 @@ class SyncCycleHandler(SyncCollectionMixin):
 class SyncSleepHandler(SyncCollectionMixin):
     """Synchronous wrapper for SleepHandler."""
 
-    def __init__(self, async_handler: Any) -> None:
+    def __init__(self, async_handler: Any, loop_thread: EventLoopThread) -> None:
         """
         Initialize SyncSleepHandler.
 
         Args:
             async_handler: The async SleepHandler to wrap
+            loop_thread: Event loop thread for running async code
         """
         self._handler = async_handler
+        self._loop_thread = loop_thread
 
     @async_to_sync
     async def get_by_id(self, sleep_id: str | UUID) -> models.Sleep:
@@ -272,14 +302,16 @@ class SyncSleepHandler(SyncCollectionMixin):
 class SyncRecoveryHandler(SyncCollectionMixin):
     """Synchronous wrapper for RecoveryHandler."""
 
-    def __init__(self, async_handler: Any) -> None:
+    def __init__(self, async_handler: Any, loop_thread: EventLoopThread) -> None:
         """
         Initialize SyncRecoveryHandler.
 
         Args:
             async_handler: The async RecoveryHandler to wrap
+            loop_thread: Event loop thread for running async code
         """
         self._handler = async_handler
+        self._loop_thread = loop_thread
 
     @async_to_sync
     async def get_for_cycle(self, cycle_id: int) -> models.Recovery:
@@ -301,14 +333,16 @@ class SyncRecoveryHandler(SyncCollectionMixin):
 class SyncWorkoutHandler(SyncCollectionMixin):
     """Synchronous wrapper for WorkoutHandler."""
 
-    def __init__(self, async_handler: Any) -> None:
+    def __init__(self, async_handler: Any, loop_thread: EventLoopThread) -> None:
         """
         Initialize SyncWorkoutHandler.
 
         Args:
             async_handler: The async WorkoutHandler to wrap
+            loop_thread: Event loop thread for running async code
         """
         self._handler = async_handler
+        self._loop_thread = loop_thread
 
     @async_to_sync
     async def get_by_id(self, workout_id: str | UUID) -> models.WorkoutV2:
@@ -364,6 +398,9 @@ class WhoopClientV2Sync:
         redirect_uri: str = "http://localhost:1234",
         retry_config: RetryConfig | None = None,
         auto_refresh_token: bool = True,
+        logger: logging.Logger | None = None,
+        request_delay: float = 0.0,
+        max_concurrent_requests: int = 10,
     ):
         """
         Initialize the synchronous Whoop API v2 client.
@@ -375,6 +412,9 @@ class WhoopClientV2Sync:
             redirect_uri: OAuth2 redirect URI
             retry_config: Configuration for retry behavior
             auto_refresh_token: Automatically refresh expired tokens
+            logger: Logger instance (creates default if None)
+            request_delay: Delay in seconds between requests (default: 0)
+            max_concurrent_requests: Maximum concurrent requests (default: 10)
         """
         self._async_client = WhoopClientV2(
             token_info=token_info,
@@ -383,6 +423,9 @@ class WhoopClientV2Sync:
             redirect_uri=redirect_uri,
             retry_config=retry_config,
             auto_refresh_token=auto_refresh_token,
+            logger=logger,
+            request_delay=request_delay,
+            max_concurrent_requests=max_concurrent_requests,
         )
 
         # Initialize sync handlers
@@ -392,30 +435,54 @@ class WhoopClientV2Sync:
         self._recovery: SyncRecoveryHandler | None = None
         self._workouts: SyncWorkoutHandler | None = None
 
+        # Event loop thread for running async code
+        self._loop_thread: EventLoopThread | None = None
+
         # Initialize the client
         self._initialize()
 
     def _initialize(self) -> None:
         """Initialize the async client and create sync handlers."""
+        # We'll initialize handlers lazily when first accessed
+        self._initialized = False
+        self._session_context: WhoopClientV2 | None = None
 
-        async def _init() -> Any:
-            async with self._async_client as client:
+    def _ensure_initialized(self) -> None:
+        """Ensure the async client is initialized with an active session."""
+        if not self._initialized:
+            # Check if we have authentication before initializing
+            if self._async_client.token_info is None:
+                from .exceptions import AuthenticationError
+
+                raise AuthenticationError(
+                    "No authentication token available. Please authenticate first using "
+                    "WhoopClientV2Sync.auth_flow() or provide a valid token."
+                )
+
+            # Create event loop thread
+            self._loop_thread = EventLoopThread()
+            self._loop_thread.start()
+
+            async def _init() -> None:
+                # Enter the async context to create session
+                self._session_context = await self._async_client.__aenter__()
+
                 # Create sync wrappers for handlers
-                self._user = SyncUserHandler(client.user)
-                self._cycles = SyncCycleHandler(client.cycles)
-                self._sleep = SyncSleepHandler(client.sleep)
-                self._recovery = SyncRecoveryHandler(client.recovery)
-                self._workouts = SyncWorkoutHandler(client.workouts)
+                assert self._loop_thread is not None  # Type guard
+                self._user = SyncUserHandler(self._session_context.user, self._loop_thread)
+                self._cycles = SyncCycleHandler(self._session_context.cycles, self._loop_thread)
+                self._sleep = SyncSleepHandler(self._session_context.sleep, self._loop_thread)
+                self._recovery = SyncRecoveryHandler(self._session_context.recovery, self._loop_thread)
+                self._workouts = SyncWorkoutHandler(self._session_context.workouts, self._loop_thread)
 
-                # Store reference to keep session alive
-                return client
+                self._initialized = True
 
-        # Run initialization
-        run_async(_init())
+            self._loop_thread.run_coroutine(_init())
 
     @property
     def user(self) -> SyncUserHandler:
         """Get the user handler."""
+        self._ensure_initialized()
         if self._user is None:
             raise RuntimeError("Client not initialized")
         return self._user
@@ -423,6 +490,7 @@ class WhoopClientV2Sync:
     @property
     def cycles(self) -> SyncCycleHandler:
         """Get the cycles handler."""
+        self._ensure_initialized()
         if self._cycles is None:
             raise RuntimeError("Client not initialized")
         return self._cycles
@@ -430,6 +498,7 @@ class WhoopClientV2Sync:
     @property
     def sleep(self) -> SyncSleepHandler:
         """Get the sleep handler."""
+        self._ensure_initialized()
         if self._sleep is None:
             raise RuntimeError("Client not initialized")
         return self._sleep
@@ -437,6 +506,7 @@ class WhoopClientV2Sync:
     @property
     def recovery(self) -> SyncRecoveryHandler:
         """Get the recovery handler."""
+        self._ensure_initialized()
         if self._recovery is None:
             raise RuntimeError("Client not initialized")
         return self._recovery
@@ -444,6 +514,7 @@ class WhoopClientV2Sync:
     @property
     def workouts(self) -> SyncWorkoutHandler:
         """Get the workouts handler."""
+        self._ensure_initialized()
         if self._workouts is None:
             raise RuntimeError("Client not initialized")
         return self._workouts
@@ -465,11 +536,34 @@ class WhoopClientV2Sync:
         """
         self._async_client.save_token(path)
 
+    def __enter__(self) -> "WhoopClientV2Sync":
+        """Enter context manager."""
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit context manager and clean up resources."""
+        self.close()
+
+    def close(self) -> None:
+        """Close the client and clean up resources."""
+        if self._initialized and self._session_context:
+
+            async def _cleanup() -> None:
+                await self._async_client.__aexit__(None, None, None)
+
+            if self._loop_thread:
+                self._loop_thread.run_coroutine(_cleanup())
+                self._loop_thread.stop()
+                self._loop_thread = None
+
+            self._initialized = False
+            self._session_context = None
+
     @async_to_sync
     async def refresh_token(self) -> None:
         """Refresh the access token."""
-        async with self._async_client as client:
-            await client.refresh_token()
+        self._ensure_initialized()
+        await self._async_client.refresh_token()
 
     # Class methods for authentication
     @classmethod
@@ -480,6 +574,8 @@ class WhoopClientV2Sync:
         redirect_uri: str = "http://localhost:1234",
         scopes: list[str] | None = None,
         open_browser: bool = True,
+        request_delay: float = 0.0,
+        max_concurrent_requests: int = 10,
     ) -> "WhoopClientV2Sync":
         """
         Perform OAuth2 authorization flow.
@@ -490,6 +586,8 @@ class WhoopClientV2Sync:
             redirect_uri: OAuth2 redirect URI
             scopes: List of scopes to request
             open_browser: Whether to open the authorization URL in browser
+            request_delay: Delay in seconds between requests (default: 0)
+            max_concurrent_requests: Maximum concurrent requests (default: 10)
 
         Returns:
             Authenticated WhoopClientV2Sync instance
@@ -508,9 +606,17 @@ class WhoopClientV2Sync:
                 raise RuntimeError("Failed to authenticate")
             return token
 
-        token_info = run_async(_auth())
+        # Use asyncio.run for class method since no instance exists yet
+        token_info = asyncio.run(_auth())
 
-        return cls(token_info=token_info, client_id=client_id, client_secret=client_secret, redirect_uri=redirect_uri)
+        return cls(
+            token_info=token_info,
+            client_id=client_id,
+            client_secret=client_secret,
+            redirect_uri=redirect_uri,
+            request_delay=request_delay,
+            max_concurrent_requests=max_concurrent_requests,
+        )
 
     @classmethod
     def from_token(

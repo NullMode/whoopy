@@ -4,10 +4,13 @@ This module provides the main client for interacting with the Whoop API v2.
 It features modern async/await patterns, automatic retry logic, and proper
 error handling.
 
+Follows api docs: https://api.prod.whoop.com/developer/doc/openapi.json
+
 Copyright (c) 2024 Felix Geilert
 """
 
 import json
+import logging
 import os
 from typing import Any
 
@@ -33,7 +36,7 @@ from .exceptions import (
     WhoopException,
 )
 from .handlers import handlers_v2 as handlers
-from .utils import OAuth2Helper, RetryableSession, RetryConfig, TokenInfo
+from .utils import OAuth2Helper, RequestThrottler, RetryableSession, RetryConfig, TokenInfo
 
 API_VERSION = "2"
 API_BASE = "https://api.prod.whoop.com/"
@@ -50,6 +53,9 @@ class WhoopClientV2:
         redirect_uri: str = "http://localhost:1234",
         retry_config: RetryConfig | None = None,
         auto_refresh_token: bool = True,
+        logger: logging.Logger | None = None,
+        request_delay: float = 0.0,
+        max_concurrent_requests: int = 10,
     ):
         """
         Initialize the Whoop API v2 client.
@@ -61,6 +67,9 @@ class WhoopClientV2:
             redirect_uri: OAuth2 redirect URI
             retry_config: Configuration for retry behavior
             auto_refresh_token: Automatically refresh expired tokens
+            logger: Logger instance (creates default if None)
+            request_delay: Delay in seconds between requests (default: 0)
+            max_concurrent_requests: Maximum concurrent requests (default: 10)
         """
         self.token_info = token_info
         self.client_id = client_id
@@ -68,10 +77,16 @@ class WhoopClientV2:
         self.redirect_uri = redirect_uri
         self.retry_config = retry_config or RetryConfig()
         self.auto_refresh_token = auto_refresh_token
+        self.logger = logger or logging.getLogger("whoopy")
+        self.request_delay = request_delay
+        self.max_concurrent_requests = max_concurrent_requests
 
         # Session will be created in __aenter__
         self._session: aiohttp.ClientSession | None = None
         self._retry_session: RetryableSession | None = None
+
+        # Request throttler
+        self._throttler = RequestThrottler(delay=self.request_delay, max_concurrent=self.max_concurrent_requests)
 
         # OAuth helper
         if client_id and client_secret:
@@ -145,6 +160,33 @@ class WhoopClientV2:
 
     async def __aenter__(self) -> "WhoopClientV2":
         """Enter async context manager."""
+        # Check if we have authentication
+        if self.token_info is None:
+            self.logger.error("No authentication token available")
+            raise AuthenticationError(
+                "No authentication token available. Please authenticate first using "
+                "WhoopClientV2.auth_flow() or provide a valid token."
+            )
+
+        # Check if token needs refresh before creating session
+        if (
+            self.token_info.is_expired
+            and self.auto_refresh_token
+            and self.token_info.refresh_token
+            and self._oauth_helper
+        ):
+            self.logger.info("Token expired, attempting to refresh")
+            try:
+                # Create temporary session for token refresh
+                async with aiohttp.ClientSession() as temp_session:
+                    self.token_info = await self._oauth_helper.refresh_access_token(
+                        temp_session, self.token_info.refresh_token
+                    )
+                self.logger.info("Token refreshed successfully")
+            except Exception as e:
+                # Log but don't fail - let the first API call handle auth errors
+                self.logger.warning(f"Failed to refresh expired token: {e}")
+
         # Create session with proper headers
         headers = {
             "User-Agent": "Whoopy/0.3.0 (Python Whoop API Client)",
@@ -208,6 +250,9 @@ class WhoopClientV2:
             )
         if response.status == HTTP_TOO_MANY_REQUESTS:
             retry_after = response.headers.get("Retry-After")
+            self.logger.warning(f"Rate limit hit. Retry-After: {retry_after}")
+            # Adjust throttler delay when we hit rate limits
+            self._throttler.adjust_delay(factor=2.0)
             raise RateLimitError(
                 retry_after=int(retry_after) if retry_after else None,
                 details={"status": HTTP_TOO_MANY_REQUESTS, "response": error_data},
@@ -243,7 +288,8 @@ class WhoopClientV2:
             self.token_info = await self._oauth_helper.refresh_access_token(self.session, self.token_info.refresh_token)
 
             # Update session headers with new token
-            self.session.headers["Authorization"] = f"{self.token_info.token_type} {self.token_info.access_token}"
+            if self._session:
+                self._session.headers["Authorization"] = f"{self.token_info.token_type} {self.token_info.access_token}"
 
         except Exception as e:
             raise RefreshTokenError(f"Failed to refresh token: {e!s}") from e
@@ -273,14 +319,23 @@ class WhoopClientV2:
         """
         url = f"{self.base_url}/{path}"
 
-        # Try the request
-        try:
-            return await self.retry_session.request(method, url, params=params, json=json_data, **kwargs)  # type: ignore[no-any-return]
+        # Apply throttling
+        async with self._throttler:
+            self.logger.debug(f"Request: {method} {url} params={params}")
 
-        except TokenExpiredError:
-            # Try to refresh token and retry once
-            await self.refresh_token()
-            return await self.retry_session.request(method, url, params=params, json=json_data, **kwargs)  # type: ignore[no-any-return]
+            # Try the request
+            try:
+                response = await self.retry_session.request(method, url, params=params, json=json_data, **kwargs)
+                self.logger.debug(f"Response: {response.status} for {method} {url}")
+                return response  # type: ignore[no-any-return]
+
+            except TokenExpiredError:
+                self.logger.info("Token expired during request, refreshing and retrying")
+                # Try to refresh token and retry once
+                await self.refresh_token()
+                response = await self.retry_session.request(method, url, params=params, json=json_data, **kwargs)
+                self.logger.debug(f"Retry response: {response.status} for {method} {url}")
+                return response  # type: ignore[no-any-return]
 
     # Authentication methods
     @classmethod

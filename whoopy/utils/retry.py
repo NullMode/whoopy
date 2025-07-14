@@ -4,6 +4,7 @@ Copyright (c) 2024 Felix Geilert
 """
 
 import asyncio
+import logging
 import random
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
@@ -19,7 +20,7 @@ T = TypeVar("T")
 class RetryConfig:
     """Configuration for retry behavior."""
 
-    max_attempts: int = 3
+    max_attempts: int = 5  # Increased for better rate limit handling
     base_delay: float = 1.0
     max_delay: float = 60.0
     exponential_base: float = 2.0
@@ -92,6 +93,14 @@ def retry_with_backoff(
                         retry_after = e.retry_after
 
                     delay = calculate_backoff_delay(attempt, config, retry_after)
+
+                    # Log retry attempt
+                    logger = logging.getLogger("whoopy")
+                    logger.warning(
+                        f"Retrying after {type(e).__name__}. "
+                        f"Attempt {attempt + 2}/{config.max_attempts}. "
+                        f"Waiting {delay:.1f}s"
+                    )
 
                     # Sleep before retry
                     await asyncio.sleep(delay)

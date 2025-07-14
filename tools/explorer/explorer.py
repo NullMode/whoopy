@@ -10,6 +10,7 @@ import os
 import webbrowser
 from datetime import datetime, timedelta
 from pathlib import Path
+from typing import Any
 
 import plotly.express as px
 import streamlit as st
@@ -34,8 +35,8 @@ config_mod_date = os.path.getmtime(CONFIG_FILE)
 
 
 # read the config (make sure this is cached based on last modification date)
-@st.cache()
-def load_config(config_mod_date):  # noqa: ARG001
+@st.cache_data
+def load_config(config_mod_date: float) -> Any:  # noqa: ARG001
     # load config and return
     with open(CONFIG_FILE) as f:
         return json.load(f)
@@ -58,7 +59,7 @@ client: WhoopClient = None
 
 
 # generate the url
-@st.cache()
+@st.cache_data
 def login_url(config: dict) -> tuple[str, str]:
     """Generates the grant url for the whoop api."""
     # retrieve url
@@ -155,8 +156,8 @@ tab_overview, tab_workout, tab_sleep, tab_report, tab_raw = st.tabs(
 )
 
 
-@st.cache()
-def load_metrics(baseline_days: int, today: datetime) -> dict:
+@st.cache_data
+def load_metrics(baseline_days: int, today: datetime) -> tuple[Any, Any, Any, Any]:
     start = today - timedelta(days=baseline_days + 1)
     rec, _ = client.recovery.collection_df(start=start, end=today, get_all_pages=True)
     sleep, _ = client.sleep.collection_df(start=start, end=today, get_all_pages=True)
